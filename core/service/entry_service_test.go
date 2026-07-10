@@ -9,18 +9,83 @@ import (
 	"mindex-api/core/repository"
 )
 
-func TestEntryService_List(t *testing.T) {
-	repo := repository.NewEntryRepositoryMock([]domain.Entry{
+func sampleEntries() []domain.Entry {
+	return []domain.Entry{
 		{ID: 1, Title: "Entry 1", Abstract: "A", Category: "Clinical Psychology", Year: 2024, Author: "A", Source: "S", Type: "Journal", URL: "#"},
-	})
+		{ID: 2, Title: "Entry 2", Abstract: "B", Category: "Clinical Psychology", Year: 2023, Author: "B", Source: "S", Type: "Article", URL: "#"},
+		{ID: 3, Title: "Entry 3", Abstract: "C", Category: "Mental Health", Year: 2022, Author: "C", Source: "S", Type: "Journal", URL: "#"},
+	}
+}
+
+func TestEntryService_List(t *testing.T) {
+	repo := repository.NewEntryRepositoryMock(sampleEntries())
 	svc := NewEntryService(repo)
 
-	entries, err := svc.List(context.Background())
+	result, err := svc.List(context.Background(), domain.ListFilter{Page: 1, Limit: 10})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(entries) != 1 {
-		t.Fatalf("expected 1 entry, got %d", len(entries))
+	if len(result.Items) != 3 {
+		t.Fatalf("expected 3 entries, got %d", len(result.Items))
+	}
+	if result.Pagination.Total != 3 {
+		t.Fatalf("expected total 3, got %d", result.Pagination.Total)
+	}
+}
+
+func TestEntryService_List_WithCategory(t *testing.T) {
+	repo := repository.NewEntryRepositoryMock(sampleEntries())
+	svc := NewEntryService(repo)
+
+	result, err := svc.List(context.Background(), domain.ListFilter{
+		Page:     1,
+		Limit:    10,
+		Category: "Clinical Psychology",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.Items) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(result.Items))
+	}
+}
+
+func TestEntryService_List_InvalidCategory(t *testing.T) {
+	repo := repository.NewEntryRepositoryMock(nil)
+	svc := NewEntryService(repo)
+
+	_, err := svc.List(context.Background(), domain.ListFilter{
+		Category: "Unknown",
+	})
+	if !errors.Is(err, ErrInvalidCategory) {
+		t.Fatalf("expected ErrInvalidCategory, got %v", err)
+	}
+}
+
+func TestEntryService_ListByCategories(t *testing.T) {
+	repo := repository.NewEntryRepositoryMock(sampleEntries())
+	svc := NewEntryService(repo)
+
+	result, err := svc.ListByCategories(context.Background(), 1, 10)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.Categories) != len(domain.CategoryList) {
+		t.Fatalf("expected %d categories, got %d", len(domain.CategoryList), len(result.Categories))
+	}
+
+	var clinical *domain.CategoryEntries
+	for i := range result.Categories {
+		if result.Categories[i].Category == "Clinical Psychology" {
+			clinical = &result.Categories[i]
+			break
+		}
+	}
+	if clinical == nil {
+		t.Fatal("expected Clinical Psychology category")
+	}
+	if clinical.Pagination.Total != 2 {
+		t.Fatalf("expected clinical total 2, got %d", clinical.Pagination.Total)
 	}
 }
 

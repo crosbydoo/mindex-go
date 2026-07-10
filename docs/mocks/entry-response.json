@@ -1,0 +1,16 @@
+{
+  "code": 201,
+  "status": true,
+  "message": "Entry created successfully",
+  "data": {
+    "id": 19,
+    "title": "Test Entry",
+    "abstract": "Abstract text for a new psychology literature entry.",
+    "category": "Clinical Psychology",
+    "year": 2024,
+    "author": "Jane Doe",
+    "source": "Test Journal",
+    "type": "Journal",
+    "url": "https://example.com/article"
+  }
+}

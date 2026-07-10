@@ -1,0 +1,28 @@
+{
+  "code": 200,
+  "status": true,
+  "message": "Entries retrieved successfully",
+  "data": {
+    "items": [
+      {
+        "id": 4,
+        "title": "Social Identity and Group Behavior in Online Communities",
+        "abstract": "Explores how social identity theory explains collective behavior patterns in digital communities and social media platforms.",
+        "category": "Social Psychology",
+        "year": 2024,
+        "author": "Michael Okafor",
+        "source": "Social Psychology Quarterly",
+        "type": "Article",
+        "url": "https://example.com/social-identity"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 10,
+      "total": 18,
+      "total_pages": 2,
+      "has_next": true,
+      "has_prev": false
+    }
+  }
+}

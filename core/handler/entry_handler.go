@@ -3,8 +3,8 @@ package handler
 import (
 	"errors"
 	"log/slog"
-	"net/http"
 	"strconv"
+	"strings"
 
 	"mindex-api/core/domain"
 	"mindex-api/core/service"
@@ -22,97 +22,129 @@ func NewEntryHandler(s service.EntryService) *EntryHandler {
 }
 
 func (h *EntryHandler) List(c *gin.Context) {
-	entries, err := h.service.List(c.Request.Context())
+	page, limit, err := parsePagination(c)
 	if err != nil {
-		slog.Error("list entries failed", "error", err)
-		response.ErrorMessage(c, http.StatusInternalServerError, "Internal server error")
+		response.BadRequest(c, "Invalid pagination")
 		return
 	}
 
-	response.JSON(c, http.StatusOK, entries)
+	category := strings.TrimSpace(c.Query("category"))
+	result, err := h.service.List(c.Request.Context(), domain.ListFilter{
+		Page:     page,
+		Limit:    limit,
+		Category: category,
+	})
+	if errors.Is(err, service.ErrInvalidCategory) {
+		response.BadRequest(c, "Invalid category")
+		return
+	}
+	if err != nil {
+		slog.Error("list entries failed", "error", err)
+		response.InternalServer(c, "Internal server error")
+		return
+	}
+
+	response.OK(c, "Entries retrieved successfully", result)
+}
+
+func (h *EntryHandler) ListByCategories(c *gin.Context) {
+	page, limit, err := parsePagination(c)
+	if err != nil {
+		response.BadRequest(c, "Invalid pagination")
+		return
+	}
+
+	result, err := h.service.ListByCategories(c.Request.Context(), page, limit)
+	if err != nil {
+		slog.Error("list categories failed", "error", err)
+		response.InternalServer(c, "Internal server error")
+		return
+	}
+
+	response.OK(c, "Categories retrieved successfully", result)
 }
 
 func (h *EntryHandler) Create(c *gin.Context) {
 	var input domain.EntryInput
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		response.ErrorMessage(c, http.StatusBadRequest, "Invalid entry payload")
+		response.BadRequest(c, "Invalid entry payload")
 		return
 	}
 
 	entry, err := h.service.Create(c.Request.Context(), input)
 	if errors.Is(err, service.ErrInvalidPayload) {
-		response.ErrorMessage(c, http.StatusBadRequest, "Invalid entry payload")
+		response.BadRequest(c, "Invalid entry payload")
 		return
 	}
 	if err != nil {
 		slog.Error("create entry failed", "error", err)
-		response.ErrorMessage(c, http.StatusInternalServerError, "Internal server error")
+		response.InternalServer(c, "Internal server error")
 		return
 	}
 
-	response.JSON(c, http.StatusCreated, entry)
+	response.Created(c, "Entry created successfully", entry)
 }
 
 func (h *EntryHandler) Update(c *gin.Context) {
 	id, err := parseEntryID(c)
 	if err != nil {
-		response.ErrorMessage(c, http.StatusBadRequest, "Invalid entry id")
+		response.BadRequest(c, "Invalid entry id")
 		return
 	}
 
 	var input domain.EntryInput
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		response.ErrorMessage(c, http.StatusBadRequest, "Invalid entry payload")
+		response.BadRequest(c, "Invalid entry payload")
 		return
 	}
 
 	entry, err := h.service.Update(c.Request.Context(), id, input)
 	if errors.Is(err, service.ErrInvalidEntryID) {
-		response.ErrorMessage(c, http.StatusBadRequest, "Invalid entry id")
+		response.BadRequest(c, "Invalid entry id")
 		return
 	}
 	if errors.Is(err, service.ErrInvalidPayload) {
-		response.ErrorMessage(c, http.StatusBadRequest, "Invalid entry payload")
+		response.BadRequest(c, "Invalid entry payload")
 		return
 	}
 	if errors.Is(err, service.ErrEntryNotFound) {
-		response.ErrorMessage(c, http.StatusNotFound, "Entry not found")
+		response.NotFound(c, "Entry not found")
 		return
 	}
 	if err != nil {
 		slog.Error("update entry failed", "error", err)
-		response.ErrorMessage(c, http.StatusInternalServerError, "Internal server error")
+		response.InternalServer(c, "Internal server error")
 		return
 	}
 
-	response.JSON(c, http.StatusOK, entry)
+	response.OK(c, "Entry updated successfully", entry)
 }
 
 func (h *EntryHandler) Delete(c *gin.Context) {
 	id, err := parseEntryID(c)
 	if err != nil {
-		response.ErrorMessage(c, http.StatusBadRequest, "Invalid entry id")
+		response.BadRequest(c, "Invalid entry id")
 		return
 	}
 
 	err = h.service.Delete(c.Request.Context(), id)
 	if errors.Is(err, service.ErrInvalidEntryID) {
-		response.ErrorMessage(c, http.StatusBadRequest, "Invalid entry id")
+		response.BadRequest(c, "Invalid entry id")
 		return
 	}
 	if errors.Is(err, service.ErrEntryNotFound) {
-		response.ErrorMessage(c, http.StatusNotFound, "Entry not found")
+		response.NotFound(c, "Entry not found")
 		return
 	}
 	if err != nil {
 		slog.Error("delete entry failed", "error", err)
-		response.ErrorMessage(c, http.StatusInternalServerError, "Internal server error")
+		response.InternalServer(c, "Internal server error")
 		return
 	}
 
-	response.NoContent(c)
+	response.OK(c, "Entry deleted successfully", nil)
 }
 
 func parseEntryID(c *gin.Context) (int64, error) {
@@ -127,4 +159,28 @@ func parseEntryID(c *gin.Context) (int64, error) {
 	}
 
 	return id, nil
+}
+
+func parsePagination(c *gin.Context) (int, int, error) {
+	page := domain.DefaultPage
+	limit := domain.DefaultLimit
+
+	if pageStr := c.Query("page"); pageStr != "" {
+		parsed, err := strconv.Atoi(pageStr)
+		if err != nil || parsed < 1 {
+			return 0, 0, errors.New("invalid page")
+		}
+		page = parsed
+	}
+
+	if limitStr := c.Query("limit"); limitStr != "" {
+		parsed, err := strconv.Atoi(limitStr)
+		if err != nil || parsed < 1 {
+			return 0, 0, errors.New("invalid limit")
+		}
+		limit = parsed
+	}
+
+	page, limit = domain.NormalizePagination(page, limit)
+	return page, limit, nil
 }

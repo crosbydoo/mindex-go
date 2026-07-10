@@ -10,18 +10,23 @@ import (
 	"mindex-api/core/domain"
 	"mindex-api/core/repository"
 	"mindex-api/core/service"
+	"mindex-api/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )
 
 func setupEntryRouter() (*gin.Engine, service.EntryService) {
 	gin.SetMode(gin.TestMode)
-	repo := repository.NewEntryRepositoryMock(nil)
+	repo := repository.NewEntryRepositoryMock([]domain.Entry{
+		{ID: 1, Title: "Entry 1", Abstract: "A", Category: "Clinical Psychology", Year: 2024, Author: "A", Source: "S", Type: "Journal", URL: "#"},
+		{ID: 2, Title: "Entry 2", Abstract: "B", Category: "Mental Health", Year: 2023, Author: "B", Source: "S", Type: "Article", URL: "#"},
+	})
 	svc := service.NewEntryService(repo)
 	handler := NewEntryHandler(svc)
 
 	r := gin.New()
 	r.GET("/api/entries", handler.List)
+	r.GET("/api/categories", handler.ListByCategories)
 	r.POST("/api/entries", handler.Create)
 	r.PUT("/api/entries", handler.Update)
 	r.DELETE("/api/entries", handler.Delete)
@@ -29,10 +34,10 @@ func setupEntryRouter() (*gin.Engine, service.EntryService) {
 	return r, svc
 }
 
-func TestEntryHandler_List_Empty(t *testing.T) {
+func TestEntryHandler_List_Paginated(t *testing.T) {
 	r, _ := setupEntryRouter()
 
-	req := httptest.NewRequest(http.MethodGet, "/api/entries", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/entries?page=1&limit=10", nil)
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 
@@ -40,12 +45,59 @@ func TestEntryHandler_List_Empty(t *testing.T) {
 		t.Fatalf("expected 200, got %d", rec.Code)
 	}
 
-	var entries []domain.Entry
-	if err := json.Unmarshal(rec.Body.Bytes(), &entries); err != nil {
+	var resp response.Body
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	if len(entries) != 0 {
-		t.Fatalf("expected empty list, got %d entries", len(entries))
+	if !resp.Status {
+		t.Fatal("expected status true")
+	}
+
+	raw, err := json.Marshal(resp.Data)
+	if err != nil {
+		t.Fatalf("failed to marshal data: %v", err)
+	}
+	var data domain.PaginatedEntries
+	if err := json.Unmarshal(raw, &data); err != nil {
+		t.Fatalf("failed to decode data: %v", err)
+	}
+	if len(data.Items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(data.Items))
+	}
+	if data.Pagination.Total != 2 {
+		t.Fatalf("expected total 2, got %d", data.Pagination.Total)
+	}
+}
+
+func TestEntryHandler_ListByCategories(t *testing.T) {
+	r, _ := setupEntryRouter()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/categories?page=1&limit=5", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	var resp response.Body
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if !resp.Status {
+		t.Fatal("expected status true")
+	}
+
+	raw, err := json.Marshal(resp.Data)
+	if err != nil {
+		t.Fatalf("failed to marshal data: %v", err)
+	}
+	var data domain.CategoriesResult
+	if err := json.Unmarshal(raw, &data); err != nil {
+		t.Fatalf("failed to decode data: %v", err)
+	}
+	if len(data.Categories) != len(domain.CategoryList) {
+		t.Fatalf("expected %d categories, got %d", len(domain.CategoryList), len(data.Categories))
 	}
 }
 
@@ -60,6 +112,14 @@ func TestEntryHandler_Create_UnauthorizedPayload(t *testing.T) {
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", rec.Code)
+	}
+
+	var resp response.Body
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp.Status {
+		t.Fatal("expected status false")
 	}
 }
 
@@ -80,14 +140,26 @@ func TestLoginHandler_Login(t *testing.T) {
 		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
 	}
 
-	var resp struct {
-		Token string `json:"token"`
-	}
+	var resp response.Body
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	if resp.Token == "" {
-		t.Fatal("expected token in response")
+	if !resp.Status {
+		t.Fatal("expected status true")
+	}
+
+	raw, err := json.Marshal(resp.Data)
+	if err != nil {
+		t.Fatalf("failed to marshal data: %v", err)
+	}
+	var data struct {
+		Token string `json:"token"`
+	}
+	if err := json.Unmarshal(raw, &data); err != nil {
+		t.Fatalf("failed to decode data: %v", err)
+	}
+	if data.Token == "" {
+		t.Fatal("expected token in response data")
 	}
 }
 
@@ -107,6 +179,14 @@ func TestLoginHandler_InvalidPassword(t *testing.T) {
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", rec.Code)
 	}
+
+	var resp response.Body
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp.Status {
+		t.Fatal("expected status false")
+	}
 }
 
 func TestLoginHandler_Logout(t *testing.T) {
@@ -124,14 +204,12 @@ func TestLoginHandler_Logout(t *testing.T) {
 		t.Fatalf("expected 200, got %d", rec.Code)
 	}
 
-	var resp struct {
-		OK bool `json:"ok"`
-	}
+	var resp response.Body
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	if !resp.OK {
-		t.Fatal("expected ok=true in response")
+	if !resp.Status {
+		t.Fatal("expected status true")
 	}
 }
 

@@ -36,6 +36,7 @@ func SetupRouter(deps Dependencies) *gin.Engine {
 	api := r.Group("/api")
 	{
 		api.GET("/entries", entryHandler.List)
+		api.GET("/categories", entryHandler.ListByCategories)
 		api.POST("/entries", middleware.Auth(deps.AdminPassword), entryHandler.Create)
 		api.PUT("/entries", middleware.Auth(deps.AdminPassword), entryHandler.Update)
 		api.DELETE("/entries", middleware.Auth(deps.AdminPassword), entryHandler.Delete)

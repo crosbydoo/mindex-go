@@ -14,7 +14,7 @@ import (
 var ErrNotFound = errors.New("entry not found")
 
 type EntryRepository interface {
-	List(ctx context.Context) ([]domain.Entry, error)
+	List(ctx context.Context, filter domain.ListFilter) ([]domain.Entry, int64, error)
 	Create(ctx context.Context, input domain.EntryInput) (*domain.Entry, error)
 	Update(ctx context.Context, id int64, input domain.EntryInput) (*domain.Entry, error)
 	Delete(ctx context.Context, id int64) error
@@ -28,14 +28,38 @@ func NewPgxEntryRepository(pool *pgxpool.Pool) *PgxEntryRepository {
 	return &PgxEntryRepository{pool: pool}
 }
 
-func (r *PgxEntryRepository) List(ctx context.Context) ([]domain.Entry, error) {
-	rows, err := r.pool.Query(ctx, `
+func (r *PgxEntryRepository) List(ctx context.Context, filter domain.ListFilter) ([]domain.Entry, int64, error) {
+	page, limit := domain.NormalizePagination(filter.Page, filter.Limit)
+	offset := domain.Offset(page, limit)
+
+	args := make([]any, 0, 3)
+	where := ""
+	argPos := 1
+
+	if filter.Category != "" {
+		where = fmt.Sprintf("WHERE category = $%d", argPos)
+		args = append(args, filter.Category)
+		argPos++
+	}
+
+	countQuery := "SELECT COUNT(*) FROM entries " + where
+	var total int64
+	if err := r.pool.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count entries: %w", err)
+	}
+
+	listQuery := fmt.Sprintf(`
 		SELECT id, title, abstract, category, year, author, source, type, url
 		FROM entries
+		%s
 		ORDER BY year DESC, id DESC
-	`)
+		LIMIT $%d OFFSET $%d
+	`, where, argPos, argPos+1)
+
+	listArgs := append(append([]any{}, args...), limit, offset)
+	rows, err := r.pool.Query(ctx, listQuery, listArgs...)
 	if err != nil {
-		return nil, fmt.Errorf("query entries: %w", err)
+		return nil, 0, fmt.Errorf("query entries: %w", err)
 	}
 	defer rows.Close()
 
@@ -53,16 +77,16 @@ func (r *PgxEntryRepository) List(ctx context.Context) ([]domain.Entry, error) {
 			&entry.Type,
 			&entry.URL,
 		); err != nil {
-			return nil, fmt.Errorf("scan entry: %w", err)
+			return nil, 0, fmt.Errorf("scan entry: %w", err)
 		}
 		entries = append(entries, entry)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate entries: %w", err)
+		return nil, 0, fmt.Errorf("iterate entries: %w", err)
 	}
 
-	return entries, nil
+	return entries, total, nil
 }
 
 func (r *PgxEntryRepository) Create(ctx context.Context, input domain.EntryInput) (*domain.Entry, error) {

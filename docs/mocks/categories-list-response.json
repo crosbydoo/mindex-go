@@ -1,0 +1,45 @@
+{
+  "code": 200,
+  "status": true,
+  "message": "Categories retrieved successfully",
+  "data": {
+    "categories": [
+      {
+        "category": "Clinical Psychology",
+        "items": [
+          {
+            "id": 1,
+            "title": "Cognitive Behavioral Therapy for Depression: A Meta-Analysis",
+            "abstract": "This meta-analysis examines the efficacy of cognitive behavioral therapy...",
+            "category": "Clinical Psychology",
+            "year": 2023,
+            "author": "Sarah Mitchell",
+            "source": "Journal of Clinical Psychology",
+            "type": "Journal",
+            "url": "https://example.com/cbt-depression"
+          }
+        ],
+        "pagination": {
+          "page": 1,
+          "limit": 10,
+          "total": 3,
+          "total_pages": 1,
+          "has_next": false,
+          "has_prev": false
+        }
+      },
+      {
+        "category": "Mental Health",
+        "items": [],
+        "pagination": {
+          "page": 1,
+          "limit": 10,
+          "total": 0,
+          "total_pages": 0,
+          "has_next": false,
+          "has_prev": false
+        }
+      }
+    ]
+  }
+}

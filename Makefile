@@ -1,29 +1,37 @@
-.PHONY: run dev build test clean install-air docker-build
+.PHONY: run run-plain dev build test clean install-air docker-build
 
 ifneq (,$(wildcard .env))
 include .env
 export
 endif
 
-# Install air for hot reload
+AIR := $(shell command -v air 2>/dev/null)
+ifeq ($(AIR),)
+  AIR := $(shell go env GOPATH)/bin/air
+endif
+
+# Install air for hot reload (one time)
 install-air:
 	@echo "Installing air..."
 	@go install github.com/air-verse/air@latest
-	@echo "Air installed successfully!"
+	@echo "Air installed at: $$(go env GOPATH)/bin/air"
 
-# Run with hot reload (development)
-dev:
-	@if command -v air > /dev/null; then \
-		air; \
-	elif [ -f $(HOME)/go/bin/air ]; then \
-		$(HOME)/go/bin/air; \
-	else \
-		echo "Air not found. Run 'make install-air' first."; \
-	fi
+# Run with hot reload (default)
+run: ensure-air
+	@$(AIR)
+
+# Alias for hot reload
+dev: run
 
 # Run without hot reload
-run:
+run-plain:
 	@go run ./cmd/api
+
+ensure-air:
+	@if [ ! -x "$(AIR)" ]; then \
+		echo "Air not found. Installing..."; \
+		go install github.com/air-verse/air@latest; \
+	fi
 
 # Build the application
 build:

@@ -30,7 +30,7 @@ func Recovery() gin.HandlerFunc {
 		defer func() {
 			if recovered := recover(); recovered != nil {
 				slog.Error("panic recovered", "error", recovered)
-				response.ErrorMessage(c, http.StatusInternalServerError, "Internal server error")
+				response.InternalServer(c, "Internal server error")
 				c.Abort()
 			}
 		}()
@@ -59,14 +59,14 @@ func Auth(adminPassword string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		header := c.GetHeader("Authorization")
 		if !strings.HasPrefix(header, "Bearer ") {
-			response.ErrorMessage(c, http.StatusUnauthorized, "Unauthorized")
+			response.Unauthorized(c, "Unauthorized")
 			c.Abort()
 			return
 		}
 
 		token := strings.TrimPrefix(header, "Bearer ")
 		if !auth.VerifyToken(token, adminPassword) {
-			response.ErrorMessage(c, http.StatusUnauthorized, "Unauthorized")
+			response.Unauthorized(c, "Unauthorized")
 			c.Abort()
 			return
 		}

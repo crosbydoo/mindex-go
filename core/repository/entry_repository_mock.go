@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"sort"
 	"sync"
 
 	"mindex-api/core/domain"
@@ -26,12 +27,39 @@ func NewEntryRepositoryMock(entries []domain.Entry) *EntryRepositoryMock {
 	}
 }
 
-func (m *EntryRepositoryMock) List(ctx context.Context) ([]domain.Entry, error) {
+func (m *EntryRepositoryMock) List(ctx context.Context, filter domain.ListFilter) ([]domain.Entry, int64, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	result := append([]domain.Entry(nil), m.entries...)
-	return result, nil
+	filtered := make([]domain.Entry, 0)
+	for _, entry := range m.entries {
+		if filter.Category != "" && entry.Category != filter.Category {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+
+	sort.Slice(filtered, func(i, j int) bool {
+		if filtered[i].Year == filtered[j].Year {
+			return filtered[i].ID > filtered[j].ID
+		}
+		return filtered[i].Year > filtered[j].Year
+	})
+
+	total := int64(len(filtered))
+	page, limit := domain.NormalizePagination(filter.Page, filter.Limit)
+	offset := domain.Offset(page, limit)
+
+	if offset >= len(filtered) {
+		return []domain.Entry{}, total, nil
+	}
+
+	end := offset + limit
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+
+	return append([]domain.Entry(nil), filtered[offset:end]...), total, nil
 }
 
 func (m *EntryRepositoryMock) Create(ctx context.Context, input domain.EntryInput) (*domain.Entry, error) {

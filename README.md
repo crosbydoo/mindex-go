@@ -4,11 +4,18 @@ REST API for **Mindex** — a minimalist psychology journal/literature catalog. 
 
 **Base URL (local):** `http://localhost:8080`
 
-All API routes use `Content-Type: application/json`. Errors return:
+All API routes use `Content-Type: application/json` with this response envelope:
 
 ```json
-{ "error": "Human readable message" }
+{
+  "code": 200,
+  "status": true,
+  "message": "Entries retrieved successfully",
+  "data": {}
+}
 ```
+
+- `status`: `true` (success) or `false` (error)
 
 ---
 
@@ -38,14 +45,16 @@ PORT=8080
 
 `make run` loads `.env` automatically.
 
-### 3. Run
+### 3. Run (hot reload)
 
 ```bash
-make run          # load .env + go run
-make dev            # hot reload (requires air)
-make test           # unit tests
-make build          # compile binary to bin/api
+make run          # hot reload with Air (auto-installs Air if missing)
+make run-plain    # plain go run (no hot reload)
+make test         # unit tests
+make build        # compile binary to bin/api
 ```
+
+Air watches `.go` / `.env` changes and restarts the server automatically.
 
 Migrations run on startup. If `entries` is empty, 18 seed records are inserted automatically.
 
@@ -74,6 +83,11 @@ mindex-api/
 │   ├── repository/           # PostgreSQL data access
 │   ├── router/               # Route registration
 │   └── service/              # Business logic
+├── docs/
+│   ├── api-endpoints.md      # Endpoint reference
+│   ├── api-models.md         # Request/response models & mocks
+│   ├── mocks/                # Ready-to-use JSON mock files
+│   └── deployment.md         # GitHub → Docker Hub → VPS
 ├── data/seed-entries.json    # 18 seed psychology entries
 ├── migrations/               # SQL migrations
 ├── pkg/response/             # JSON response helpers
@@ -84,400 +98,42 @@ mindex-api/
 
 ---
 
-## Data Models
-
-### `Entry` (API response)
-
-Returned by list, create, and update endpoints.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | `number` | Auto-generated database ID |
-| `title` | `string` | Entry title |
-| `abstract` | `string` | Summary / abstract text |
-| `category` | `string` | Psychology category (see enums) |
-| `year` | `number` | Publication year |
-| `author` | `string` | Author name |
-| `source` | `string` | Journal, publisher, or source |
-| `type` | `string` | Entry type (see enums) |
-| `url` | `string` | Link to source (default `#`) |
-
-```json
-{
-  "id": 1,
-  "title": "Cognitive Behavioral Therapy for Depression: A Meta-Analysis",
-  "abstract": "This meta-analysis examines the efficacy of cognitive behavioral therapy...",
-  "category": "Clinical Psychology",
-  "year": 2023,
-  "author": "Sarah Mitchell",
-  "source": "Journal of Clinical Psychology",
-  "type": "Journal",
-  "url": "https://example.com/cbt-depression"
-}
-```
-
-> `created_at` exists in the database but is **not** exposed in API responses.
-
-### `EntryInput` (create / update body)
-
-Same fields as `Entry` **without** `id`.
-
-| Field | Required | Rules |
-|-------|----------|-------|
-| `title` | yes | Non-empty after trim |
-| `abstract` | yes | Non-empty after trim |
-| `category` | yes | Must be a valid category enum |
-| `year` | yes | Positive integer (`> 0`) |
-| `author` | yes | Non-empty after trim |
-| `source` | yes | Non-empty after trim |
-| `type` | yes | Must be a valid entry type enum |
-| `url` | no | Defaults to `"#"` if missing or empty |
-
-### Enums
-
-#### `category` — allowed values
-
-- `Clinical Psychology`
-- `Developmental Psychology`
-- `Cognitive Psychology`
-- `Social Psychology`
-- `Educational Psychology`
-- `Mental Health`
-- `Research Methods`
-
-#### `type` — allowed values
-
-- `Journal`
-- `Article`
-- `Thesis`
-- `Literature Review`
-
-### Auth models
-
-#### Login request
-
-```json
-{ "password": "string" }
-```
-
-#### Login response
-
-```json
-{ "token": "<hex-string>" }
-```
-
-#### Logout response
-
-```json
-{ "ok": true }
-```
-
-#### Health response
-
-```json
-{ "status": "ok" }
-```
-
----
-
-## Authentication
-
-This API uses a **static HMAC bearer token**, not JWT.
-
-```
-token = HMAC-SHA256(key=ADMIN_PASSWORD, message="mindex-admin-session").hex()
-```
-
-### Flow
-
-1. `POST /api/login` with admin password → receive `token`
-2. Store token in client (`sessionStorage` key: `mindex_admin_token`)
-3. Send token on protected routes:
-
-```
-Authorization: Bearer <token>
-```
-
-4. `POST /api/logout` → client removes token from storage
-
-### Route access
-
-| Access | Routes |
-|--------|--------|
-| Public | `GET /health`, `GET /api/entries`, `POST /api/login`, `POST /api/logout` |
-| Protected (Bearer) | `POST /api/entries`, `PUT /api/entries`, `DELETE /api/entries` |
-
-> Logout is stateless — the server cannot invalidate the static token. The client must clear `sessionStorage` after logout.
-
----
-
-## API Endpoints
-
-### `GET /health`
-
-Health check.
-
-**Response `200`**
-
-```json
-{ "status": "ok" }
-```
-
----
-
-### `GET /api/entries`
-
-List all psychology literature entries. **No auth required.**
-
-**Response `200`** — array of `Entry`, ordered by `year DESC, id DESC`
-
-```json
-[
-  {
-    "id": 4,
-    "title": "Social Identity and Group Behavior in Online Communities",
-    "abstract": "...",
-    "category": "Social Psychology",
-    "year": 2024,
-    "author": "Michael Okafor",
-    "source": "Social Psychology Quarterly",
-    "type": "Article",
-    "url": "https://example.com/social-identity"
-  }
-]
-```
-
----
-
-### `POST /api/login`
-
-Admin login.
-
-**Request body**
-
-```json
-{ "password": "admin123" }
-```
-
-**Response `200`**
-
-```json
-{ "token": "a1b2c3..." }
-```
-
-**Errors**
-
-| Status | Message |
-|--------|---------|
-| `401` | `Invalid password` |
-| `503` | `ADMIN_PASSWORD is not configured on the server` |
-| `405` | `Method not allowed` |
-| `400` | `Invalid request body` |
-
----
-
-### `POST /api/logout`
-
-Logout. **No auth required.**
-
-**Response `200`**
-
-```json
-{ "ok": true }
-```
-
-Client should remove `mindex_admin_token` from `sessionStorage` after a successful response.
-
----
-
-### `POST /api/entries`
-
-Create a new entry. **Auth required.**
-
-**Request body** — `EntryInput`
-
-```json
-{
-  "title": "Test Entry",
-  "abstract": "Abstract text",
-  "category": "Clinical Psychology",
-  "year": 2024,
-  "author": "Jane Doe",
-  "source": "Test Journal",
-  "type": "Journal",
-  "url": "https://example.com"
-}
-```
-
-**Response `201`** — created `Entry`
-
-**Errors**
-
-| Status | Message |
-|--------|---------|
-| `400` | `Invalid entry payload` |
-| `401` | `Unauthorized` |
-| `500` | `Internal server error` |
-
----
-
-### `PUT /api/entries?id={id}`
-
-Update an existing entry. **Auth required.**
-
-**Query params**
-
-| Param | Type | Description |
-|-------|------|-------------|
-| `id` | `number` | Entry ID (positive integer) |
-
-**Request body** — `EntryInput` (same as create)
-
-**Response `200`** — updated `Entry`
-
-**Errors**
-
-| Status | Message |
-|--------|---------|
-| `400` | `Invalid entry id` or `Invalid entry payload` |
-| `401` | `Unauthorized` |
-| `404` | `Entry not found` |
-| `500` | `Internal server error` |
-
----
-
-### `DELETE /api/entries?id={id}`
-
-Delete an entry. **Auth required.**
-
-**Query params**
-
-| Param | Type | Description |
-|-------|------|-------------|
-| `id` | `number` | Entry ID (positive integer) |
-
-**Response `204`** — empty body
-
-**Errors**
-
-| Status | Message |
-|--------|---------|
-| `400` | `Invalid entry id` |
-| `401` | `Unauthorized` |
-| `404` | `Entry not found` |
-| `500` | `Internal server error` |
-
----
-
-## How to Use
-
-### curl
+## API Documentation
+
+Detailed docs are split into separate files:
+
+| Document | Description |
+|----------|-------------|
+| **[docs/api-endpoints.md](docs/api-endpoints.md)** | All endpoints, auth, status codes, curl examples |
+| **[docs/api-models.md](docs/api-models.md)** | Request/response models, enums, TypeScript types |
+| **[docs/mocks/](docs/mocks/)** | Ready-to-use JSON mock files for testing |
+
+### Endpoint summary
+
+| Method | Path | Auth |
+|--------|------|------|
+| `GET` | `/health` | No |
+| `GET` | `/api/entries?page=&limit=&category=` | No |
+| `GET` | `/api/categories?page=&limit=` | No |
+| `POST` | `/api/login` | No |
+| `POST` | `/api/logout` | No |
+| `POST` | `/api/entries` | Bearer |
+| `PUT` | `/api/entries?id={id}` | Bearer |
+| `DELETE` | `/api/entries?id={id}` | Bearer |
+
+### Quick test with mock files
 
 ```bash
-# 1. Health check
-curl http://localhost:8080/health
-
-# 2. List entries (public)
-curl http://localhost:8080/api/entries
-
-# 3. Login and save token
-TOKEN=$(curl -s -X POST http://localhost:8080/api/login \
+# Login
+curl -X POST http://localhost:8080/api/login \
   -H "Content-Type: application/json" \
-  -d '{"password":"admin123"}' | jq -r '.token')
+  -d @docs/mocks/login-request.json
 
-# 4. Create entry
+# Create entry (after login, set TOKEN)
 curl -X POST http://localhost:8080/api/entries \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
-  -d '{
-    "title": "Test Entry",
-    "abstract": "Abstract text",
-    "category": "Clinical Psychology",
-    "year": 2024,
-    "author": "Jane Doe",
-    "source": "Test Journal",
-    "type": "Journal",
-    "url": "https://example.com"
-  }'
-
-# 5. Update entry
-curl -X PUT "http://localhost:8080/api/entries?id=1" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{
-    "title": "Updated Entry",
-    "abstract": "Updated abstract",
-    "category": "Clinical Psychology",
-    "year": 2024,
-    "author": "Jane Doe",
-    "source": "Test Journal",
-    "type": "Journal",
-    "url": "https://example.com"
-  }'
-
-# 6. Delete entry
-curl -X DELETE "http://localhost:8080/api/entries?id=1" \
-  -H "Authorization: Bearer $TOKEN"
-
-# 7. Logout
-curl -X POST http://localhost:8080/api/logout
-```
-
-### JavaScript / fetch
-
-```ts
-const API_BASE = 'http://localhost:8080';
-
-// List entries (public)
-const entries = await fetch(`${API_BASE}/api/entries`).then((r) => r.json());
-
-// Login
-const { token } = await fetch(`${API_BASE}/api/login`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ password: 'admin123' }),
-}).then((r) => r.json());
-
-sessionStorage.setItem('mindex_admin_token', token);
-
-// Create entry (protected)
-const created = await fetch(`${API_BASE}/api/entries`, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`,
-  },
-  body: JSON.stringify({
-    title: 'Test Entry',
-    abstract: 'Abstract text',
-    category: 'Clinical Psychology',
-    year: 2024,
-    author: 'Jane Doe',
-    source: 'Test Journal',
-    type: 'Journal',
-    url: 'https://example.com',
-  }),
-}).then((r) => r.json());
-
-// Update entry
-const updated = await fetch(`${API_BASE}/api/entries?id=1`, {
-  method: 'PUT',
-  headers: {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`,
-  },
-  body: JSON.stringify({ /* EntryInput fields */ }),
-}).then((r) => r.json());
-
-// Delete entry (204, no body)
-await fetch(`${API_BASE}/api/entries?id=1`, {
-  method: 'DELETE',
-  headers: { Authorization: `Bearer ${token}` },
-});
-
-// Logout
-await fetch(`${API_BASE}/api/logout`, { method: 'POST' });
-sessionStorage.removeItem('mindex_admin_token');
+  -d @docs/mocks/entry-create-request.json
 ```
 
 ### Frontend (Vite) integration
@@ -498,7 +154,6 @@ server: {
 ```
 
 ---
-
 ## Environment Variables
 
 | Variable | Required | Description |
@@ -551,8 +206,9 @@ Required GitHub Secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, `VPS_HOST`, `V
 
 | Command | Description |
 |---------|-------------|
-| `make run` | Load `.env` and run with `go run` |
-| `make dev` | Hot reload with Air |
+| `make run` | Hot reload with Air (loads `.env`) |
+| `make run-plain` | Run with `go run` (no hot reload) |
+| `make install-air` | Install Air manually |
 | `make build` | Build binary to `bin/api` |
 | `make test` | Run all unit tests |
 | `make clean` | Remove build artifacts |

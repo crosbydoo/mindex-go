@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"mindex-api/core/auth"
 	"mindex-api/core/domain"
@@ -11,15 +12,18 @@ import (
 )
 
 var (
-	ErrInvalidPayload   = errors.New("invalid entry payload")
-	ErrInvalidEntryID   = errors.New("invalid entry id")
-	ErrEntryNotFound    = errors.New("entry not found")
-	ErrInvalidPassword  = errors.New("invalid password")
-	ErrAdminNotConfigured = errors.New("admin password not configured")
+	ErrInvalidPayload       = errors.New("invalid entry payload")
+	ErrInvalidEntryID       = errors.New("invalid entry id")
+	ErrEntryNotFound        = errors.New("entry not found")
+	ErrInvalidPassword      = errors.New("invalid password")
+	ErrAdminNotConfigured   = errors.New("admin password not configured")
+	ErrInvalidCategory      = errors.New("invalid category")
+	ErrInvalidPagination    = errors.New("invalid pagination")
 )
 
 type EntryService interface {
-	List(ctx context.Context) ([]domain.Entry, error)
+	List(ctx context.Context, filter domain.ListFilter) (*domain.PaginatedEntries, error)
+	ListByCategories(ctx context.Context, page, limit int) (*domain.CategoriesResult, error)
 	Create(ctx context.Context, input domain.EntryInput) (*domain.Entry, error)
 	Update(ctx context.Context, id int64, input domain.EntryInput) (*domain.Entry, error)
 	Delete(ctx context.Context, id int64) error
@@ -38,15 +42,53 @@ func NewEntryService(repo repository.EntryRepository) EntryService {
 	return &entryService{repo: repo}
 }
 
-func (s *entryService) List(ctx context.Context) ([]domain.Entry, error) {
-	entries, err := s.repo.List(ctx)
+func (s *entryService) List(ctx context.Context, filter domain.ListFilter) (*domain.PaginatedEntries, error) {
+	filter.Category = strings.TrimSpace(filter.Category)
+	if filter.Category != "" && !domain.IsValidCategory(filter.Category) {
+		return nil, ErrInvalidCategory
+	}
+
+	filter.Page, filter.Limit = domain.NormalizePagination(filter.Page, filter.Limit)
+
+	items, total, err := s.repo.List(ctx, filter)
 	if err != nil {
 		return nil, fmt.Errorf("list entries: %w", err)
 	}
-	if entries == nil {
-		entries = []domain.Entry{}
+	if items == nil {
+		items = []domain.Entry{}
 	}
-	return entries, nil
+
+	return &domain.PaginatedEntries{
+		Items:      items,
+		Pagination: domain.BuildPagination(filter.Page, filter.Limit, total),
+	}, nil
+}
+
+func (s *entryService) ListByCategories(ctx context.Context, page, limit int) (*domain.CategoriesResult, error) {
+	page, limit = domain.NormalizePagination(page, limit)
+
+	categories := make([]domain.CategoryEntries, 0, len(domain.CategoryList))
+	for _, category := range domain.CategoryList {
+		items, total, err := s.repo.List(ctx, domain.ListFilter{
+			Page:     page,
+			Limit:    limit,
+			Category: category,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list entries for category %q: %w", category, err)
+		}
+		if items == nil {
+			items = []domain.Entry{}
+		}
+
+		categories = append(categories, domain.CategoryEntries{
+			Category:   category,
+			Items:      items,
+			Pagination: domain.BuildPagination(page, limit, total),
+		})
+	}
+
+	return &domain.CategoriesResult{Categories: categories}, nil
 }
 
 func (s *entryService) Create(ctx context.Context, input domain.EntryInput) (*domain.Entry, error) {

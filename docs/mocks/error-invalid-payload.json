@@ -1,0 +1,6 @@
+{
+  "code": 400,
+  "status": false,
+  "message": "Invalid entry payload",
+  "data": null
+}

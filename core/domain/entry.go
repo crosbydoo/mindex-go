@@ -5,16 +5,31 @@ import (
 	"strings"
 )
 
-const DefaultURL = "#"
+const (
+	DefaultURL         = "#"
+	DefaultPage        = 1
+	DefaultLimit       = 10
+	MaxLimit           = 100
+)
+
+var CategoryList = []string{
+	"Clinical Psychology",
+	"Developmental Psychology",
+	"Cognitive Psychology",
+	"Social Psychology",
+	"Educational Psychology",
+	"Mental Health",
+	"Research Methods",
+}
 
 var ValidCategories = map[string]struct{}{
-	"Clinical Psychology":       {},
-	"Developmental Psychology":  {},
-	"Cognitive Psychology":      {},
-	"Social Psychology":         {},
-	"Educational Psychology":    {},
-	"Mental Health":             {},
-	"Research Methods":          {},
+	"Clinical Psychology":      {},
+	"Developmental Psychology": {},
+	"Cognitive Psychology":     {},
+	"Social Psychology":        {},
+	"Educational Psychology":   {},
+	"Mental Health":            {},
+	"Research Methods":         {},
 }
 
 var ValidEntryTypes = map[string]struct{}{
@@ -45,6 +60,78 @@ type EntryInput struct {
 	Source   string `json:"source"`
 	Type     string `json:"type"`
 	URL      string `json:"url"`
+}
+
+type Pagination struct {
+	Page       int   `json:"page"`
+	Limit      int   `json:"limit"`
+	Total      int64 `json:"total"`
+	TotalPages int   `json:"total_pages"`
+	HasNext    bool  `json:"has_next"`
+	HasPrev    bool  `json:"has_prev"`
+}
+
+type PaginatedEntries struct {
+	Items      []Entry    `json:"items"`
+	Pagination Pagination `json:"pagination"`
+}
+
+type CategoryEntries struct {
+	Category   string     `json:"category"`
+	Items      []Entry    `json:"items"`
+	Pagination Pagination `json:"pagination"`
+}
+
+type CategoriesResult struct {
+	Categories []CategoryEntries `json:"categories"`
+}
+
+type ListFilter struct {
+	Page     int
+	Limit    int
+	Category string
+}
+
+func NormalizePagination(page, limit int) (int, int) {
+	if page < 1 {
+		page = DefaultPage
+	}
+	if limit < 1 {
+		limit = DefaultLimit
+	}
+	if limit > MaxLimit {
+		limit = MaxLimit
+	}
+	return page, limit
+}
+
+func BuildPagination(page, limit int, total int64) Pagination {
+	page, limit = NormalizePagination(page, limit)
+	totalPages := int(total) / limit
+	if int(total)%limit != 0 {
+		totalPages++
+	}
+	if total == 0 {
+		totalPages = 0
+	}
+	return Pagination{
+		Page:       page,
+		Limit:      limit,
+		Total:      total,
+		TotalPages: totalPages,
+		HasNext:    totalPages > 0 && page < totalPages,
+		HasPrev:    totalPages > 0 && page > 1,
+	}
+}
+
+func Offset(page, limit int) int {
+	page, limit = NormalizePagination(page, limit)
+	return (page - 1) * limit
+}
+
+func IsValidCategory(category string) bool {
+	_, ok := ValidCategories[strings.TrimSpace(category)]
+	return ok
 }
 
 func NormalizeEntryInput(input EntryInput) EntryInput {

@@ -1,0 +1,8 @@
+{
+  "code": 200,
+  "status": true,
+  "message": "Server is healthy",
+  "data": {
+    "status": "ok"
+  }
+}

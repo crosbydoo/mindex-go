@@ -89,3 +89,37 @@ func TestValidateEntryInput_InvalidYear(t *testing.T) {
 		t.Fatal("expected validation error for invalid year")
 	}
 }
+
+func TestBuildPagination(t *testing.T) {
+	p := BuildPagination(2, 20, 342)
+	if p.Page != 2 || p.Limit != 20 || p.Total != 342 || p.TotalPages != 18 {
+		t.Fatalf("unexpected pagination values: %+v", p)
+	}
+	if !p.HasNext {
+		t.Fatal("expected has_next true")
+	}
+	if !p.HasPrev {
+		t.Fatal("expected has_prev true")
+	}
+
+	first := BuildPagination(1, 20, 342)
+	if first.HasPrev {
+		t.Fatal("expected has_prev false on first page")
+	}
+	if !first.HasNext {
+		t.Fatal("expected has_next true on first page")
+	}
+
+	last := BuildPagination(18, 20, 342)
+	if last.HasNext {
+		t.Fatal("expected has_next false on last page")
+	}
+	if !last.HasPrev {
+		t.Fatal("expected has_prev true on last page")
+	}
+
+	empty := BuildPagination(1, 10, 0)
+	if empty.HasNext || empty.HasPrev || empty.TotalPages != 0 {
+		t.Fatalf("unexpected empty pagination: %+v", empty)
+	}
+}
