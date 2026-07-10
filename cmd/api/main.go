@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -58,7 +60,23 @@ func main() {
 	}
 
 	go func() {
-		slog.Info("server starting", "port", cfg.Port)
+		baseURL := fmt.Sprintf("http://localhost:%s", cfg.Port)
+
+		slog.Info("server starting",
+			"go_version", runtime.Version(),
+			"url", baseURL,
+			"health_url", baseURL+"/health",
+			"api_url", baseURL+"/api",
+		)
+
+		fmt.Printf(
+			"\nMindex API\n  Go version : %s\n  Local URL  : %s\n  Health     : %s/health\n  API        : %s/api\n\n",
+			runtime.Version(),
+			baseURL,
+			baseURL,
+			baseURL,
+		)
+
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("server failed", "error", err)
 			os.Exit(1)
