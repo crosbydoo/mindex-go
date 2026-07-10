@@ -1,0 +1,66 @@
+# --- Binaries & build output ---
+/api
+bin/
+dist/
+tmp/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# --- Go ---
+*.test
+*.out
+*.prof
+vendor/
+go.work
+go.work.sum
+
+# --- Test & coverage ---
+coverage.txt
+coverage.html
+*.coverprofile
+
+# --- Environment & secrets ---
+.env
+.env.local
+.env.*.local
+deploy/.env
+
+# --- Logs ---
+*.log
+build-errors.log
+logs/
+
+# --- Air (hot reload) ---
+build-errors.log
+
+# --- IDE & editors ---
+.idea/
+.vscode/
+.cursor/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# --- OS ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# --- Docker (local overrides) ---
+docker-compose.override.yml
+docker-compose.local.yml
+
+# --- Misc ---
+*.bak
+*.tmp
+.cache/

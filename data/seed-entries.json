@@ -1,0 +1,182 @@
+[
+  {
+    "title": "Cognitive Behavioral Therapy for Depression: A Meta-Analysis",
+    "abstract": "This meta-analysis examines the efficacy of cognitive behavioral therapy across 87 randomized controlled trials, finding moderate to large effect sizes for depression treatment.",
+    "category": "Clinical Psychology",
+    "year": 2023,
+    "author": "Sarah Mitchell",
+    "source": "Journal of Clinical Psychology",
+    "type": "Journal",
+    "url": "https://example.com/cbt-depression"
+  },
+  {
+    "title": "Attachment Theory in Early Childhood Development",
+    "abstract": "A comprehensive review of Bowlby's attachment theory and its modern applications in understanding parent-child bonding during the first three years of life.",
+    "category": "Developmental Psychology",
+    "year": 2022,
+    "author": "James Chen",
+    "source": "Developmental Review",
+    "type": "Article",
+    "url": "https://example.com/attachment-theory"
+  },
+  {
+    "title": "Working Memory Capacity and Fluid Intelligence",
+    "abstract": "Investigates the relationship between working memory capacity measures and fluid intelligence scores in a sample of 450 university students.",
+    "category": "Cognitive Psychology",
+    "year": 2024,
+    "author": "Elena Rodriguez",
+    "source": "Cognitive Science",
+    "type": "Journal",
+    "url": "https://example.com/working-memory"
+  },
+  {
+    "title": "Social Identity and Group Behavior in Online Communities",
+    "abstract": "Explores how social identity theory explains collective behavior patterns in digital communities and social media platforms.",
+    "category": "Social Psychology",
+    "year": 2023,
+    "author": "Michael Okafor",
+    "source": "Social Psychology Quarterly",
+    "type": "Article",
+    "url": "https://example.com/social-identity"
+  },
+  {
+    "title": "Mindfulness-Based Interventions in K-12 Education",
+    "abstract": "A systematic review of mindfulness programs implemented in primary and secondary schools and their effects on student well-being and academic performance.",
+    "category": "Educational Psychology",
+    "year": 2022,
+    "author": "Lisa Park",
+    "source": "Educational Psychology Review",
+    "type": "Literature Review",
+    "url": "https://example.com/mindfulness-education"
+  },
+  {
+    "title": "Anxiety Disorders in Adolescents: Prevalence and Risk Factors",
+    "abstract": "National survey data examining the prevalence of anxiety disorders among adolescents aged 12-18 and associated environmental risk factors.",
+    "category": "Mental Health",
+    "year": 2024,
+    "author": "David Thompson",
+    "source": "Journal of Adolescent Health",
+    "type": "Journal",
+    "url": "https://example.com/adolescent-anxiety"
+  },
+  {
+    "title": "Mixed Methods Research in Psychology: Best Practices",
+    "abstract": "Guidelines for designing and conducting mixed methods research studies that integrate qualitative and quantitative approaches effectively.",
+    "category": "Research Methods",
+    "year": 2021,
+    "author": "Rachel Kim",
+    "source": "Psychological Methods",
+    "type": "Article",
+    "url": "https://example.com/mixed-methods"
+  },
+  {
+    "title": "The Role of Dopamine in Reward Learning",
+    "abstract": "Neuroimaging study investigating dopaminergic signaling during probabilistic reward learning tasks in healthy adults.",
+    "category": "Cognitive Psychology",
+    "year": 2023,
+    "author": "Thomas Weber",
+    "source": "Neuropsychologia",
+    "type": "Thesis",
+    "url": "https://example.com/dopamine-reward"
+  },
+  {
+    "title": "Trauma-Informed Care in Clinical Settings",
+    "abstract": "Framework for implementing trauma-informed care principles across outpatient mental health clinics serving diverse populations.",
+    "category": "Clinical Psychology",
+    "year": 2022,
+    "author": "Angela Foster",
+    "source": "Clinical Psychology Review",
+    "type": "Literature Review",
+    "url": "https://example.com/trauma-informed"
+  },
+  {
+    "title": "Peer Relationships and Academic Achievement in Middle School",
+    "abstract": "Longitudinal study tracking the influence of peer group dynamics on academic motivation and achievement over two school years.",
+    "category": "Educational Psychology",
+    "year": 2021,
+    "author": "Kevin Liu",
+    "source": "Journal of Educational Psychology",
+    "type": "Journal",
+    "url": "https://example.com/peer-achievement"
+  },
+  {
+    "title": "Implicit Bias and Decision Making in Hiring",
+    "abstract": "Experimental study examining how implicit racial and gender biases affect hiring decisions in simulated workplace scenarios.",
+    "category": "Social Psychology",
+    "year": 2024,
+    "author": "Nina Patel",
+    "source": "Journal of Applied Social Psychology",
+    "type": "Article",
+    "url": "https://example.com/implicit-bias"
+  },
+  {
+    "title": "Language Acquisition in Bilingual Children",
+    "abstract": "Cross-sectional analysis of vocabulary development and grammatical competence in simultaneous bilingual children aged 2-6 years.",
+    "category": "Developmental Psychology",
+    "year": 2023,
+    "author": "Carlos Mendez",
+    "source": "Child Development",
+    "type": "Thesis",
+    "url": "https://example.com/bilingual-acquisition"
+  },
+  {
+    "title": "Burnout Syndrome Among Healthcare Workers Post-Pandemic",
+    "abstract": "Survey of 2,100 healthcare professionals assessing burnout prevalence, contributing factors, and coping strategies after COVID-19.",
+    "category": "Mental Health",
+    "year": 2024,
+    "author": "Emily Watson",
+    "source": "Journal of Occupational Health Psychology",
+    "type": "Journal",
+    "url": "https://example.com/healthcare-burnout"
+  },
+  {
+    "title": "Replication Crisis in Psychological Science: A Decade Later",
+    "abstract": "Ten-year retrospective on the replication crisis, evaluating reforms in research practices and their impact on reproducibility.",
+    "category": "Research Methods",
+    "year": 2023,
+    "author": "Robert Hayes",
+    "source": "Perspectives on Psychological Science",
+    "type": "Literature Review",
+    "url": "https://example.com/replication-crisis"
+  },
+  {
+    "title": "Emotional Regulation Strategies in Autism Spectrum Disorder",
+    "abstract": "Qualitative study of emotion regulation techniques used by adults with ASD and their perceived effectiveness in daily life.",
+    "category": "Clinical Psychology",
+    "year": 2022,
+    "author": "Hannah Brooks",
+    "source": "Autism Research",
+    "type": "Article",
+    "url": "https://example.com/asd-emotion"
+  },
+  {
+    "title": "Theory of Mind Development in Preschoolers",
+    "abstract": "Experimental investigation of false-belief task performance in preschool children and its correlation with executive function skills.",
+    "category": "Developmental Psychology",
+    "year": 2021,
+    "author": "Sophie Laurent",
+    "source": "Developmental Psychology",
+    "type": "Journal",
+    "url": "https://example.com/theory-of-mind"
+  },
+  {
+    "title": "Sleep Deprivation and Cognitive Performance",
+    "abstract": "Controlled laboratory study measuring the effects of 24 and 48 hours of sleep deprivation on attention, memory, and decision-making.",
+    "category": "Cognitive Psychology",
+    "year": 2022,
+    "author": "Daniel Okonkwo",
+    "source": "Sleep Medicine Reviews",
+    "type": "Thesis",
+    "url": "https://example.com/sleep-cognition"
+  },
+  {
+    "title": "Group Conformity in Emergency Evacuation Scenarios",
+    "abstract": "Field simulation study examining how social conformity influences evacuation behavior during simulated emergency situations.",
+    "category": "Social Psychology",
+    "year": 2021,
+    "author": "Maria Santos",
+    "source": "Group Dynamics",
+    "type": "Article",
+    "url": ""
+  }
+]
