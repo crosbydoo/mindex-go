@@ -35,7 +35,7 @@ test:
 
 # Build Docker image
 docker-build:
-	@docker build -t mindex-api .
+	@docker build -t ristudev/mindex-go-server .
 
 # Clean build artifacts
 clean:

@@ -1,7 +1,7 @@
 services:
   api:
-    image: ${DOCKERHUB_USERNAME}/mindex-api:${IMAGE_TAG:-latest}
-    container_name: mindex-api
+    image: ${DOCKER_IMAGE:-ristudev/mindex-go-server}:${IMAGE_TAG:-latest}
+    container_name: mindex-go-server
     restart: unless-stopped
     ports:
       - "${PORT:-8080}:8080"

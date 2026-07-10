@@ -515,12 +515,12 @@ server: {
 Build and run locally:
 
 ```bash
-docker build -t mindex-api .
+docker build -t ristudev/mindex-go-server .
 docker run -p 8080:8080 \
   -e POSTGRES_URL="postgres://user:password@host:5432/mindex?sslmode=disable" \
   -e ADMIN_PASSWORD="your-admin-password" \
   -e CORS_ORIGIN="http://localhost:3005" \
-  mindex-api
+  ristudev/mindex-go-server
 ```
 
 ## Production Deployment (GitHub → Docker Hub → VPS)

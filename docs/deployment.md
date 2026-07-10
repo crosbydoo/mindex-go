@@ -23,7 +23,7 @@ VPS menjalankan container dari image Docker Hub
 |----------|-------|
 | **GitHub** | Source code + trigger CI/CD |
 | **GitHub Actions** | Build Docker image, push ke Hub, deploy ke VPS |
-| **Docker Hub** | Registry image (`username/mindex-api`) |
+| **Docker Hub** | Registry image (`ristudev/mindex-go-server`) |
 | **VPS** | Pull image + run container (tidak build) |
 
 ---
@@ -38,8 +38,15 @@ VPS menjalankan container dari image Docker Hub
 
 Image akan tersedia di:
 ```
-docker.io/<username>/mindex-api:latest
-docker.io/<username>/mindex-api:<git-sha>
+docker.io/ristudev/mindex-go-server:latest
+docker.io/ristudev/mindex-go-server:<git-sha>
+```
+
+Contoh push manual:
+
+```bash
+docker build -t ristudev/mindex-go-server:latest .
+docker push ristudev/mindex-go-server:latest
 ```
 
 ---
@@ -123,7 +130,7 @@ nano .env
 Isi minimal:
 
 ```env
-DOCKERHUB_USERNAME=your-dockerhub-username
+DOCKER_IMAGE=ristudev/mindex-go-server
 IMAGE_TAG=latest
 PORT=8080
 ADMIN_PASSWORD=strong-password-here
@@ -207,8 +214,8 @@ Contoh `docker-compose.yml` minimal (API saja):
 ```yaml
 services:
   api:
-    image: ${DOCKERHUB_USERNAME}/mindex-api:${IMAGE_TAG:-latest}
-    container_name: mindex-api
+    image: ${DOCKER_IMAGE:-ristudev/mindex-go-server}:${IMAGE_TAG:-latest}
+    container_name: mindex-go-server
     restart: unless-stopped
     ports:
       - "${PORT:-8080}:8080"
@@ -261,7 +268,7 @@ docker compose up -d
 
 | Masalah | Solusi |
 |---------|--------|
-| `pull access denied` | Cek `DOCKERHUB_USERNAME` di `.env` VPS |
+| `pull access denied` | Cek `DOCKER_IMAGE=ristudev/mindex-go-server` di `.env` VPS |
 | `connection refused` Postgres | Tunggu healthcheck postgres, cek `docker compose logs postgres` |
 | GitHub Actions deploy gagal | Cek `VPS_SSH_KEY`, `VPS_HOST`, firewall port 22 |
 | Port 8080 sudah dipakai | Ubah `PORT` di `.env` VPS |
