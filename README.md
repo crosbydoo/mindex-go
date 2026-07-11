@@ -39,7 +39,7 @@ Example `.env`:
 ```env
 POSTGRES_URL=postgres://ristudev@localhost:5432/mindex?sslmode=disable
 ADMIN_PASSWORD=admin123
-CORS_ORIGIN=http://localhost:3005
+CORS_ORIGIN=http://localhost:3005,http://localhost:5173
 PORT=8080
 ```
 
@@ -163,7 +163,7 @@ server: {
 | `POSTGRES_URL` | yes | PostgreSQL connection string |
 | `ADMIN_PASSWORD` | yes* | Admin password for login (*required at login time) |
 | `PORT` | no | Server port (default `8080`) |
-| `CORS_ORIGIN` | no | Allowed frontend origin (e.g. `http://localhost:3005`) |
+| `CORS_ORIGIN` | no | Allowed frontend origin(s), comma-separated (e.g. `http://localhost:3005,https://app.vercel.app`) |
 
 ---
 

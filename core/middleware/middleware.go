@@ -38,11 +38,18 @@ func Recovery() gin.HandlerFunc {
 	}
 }
 
-func CORS(origin string) gin.HandlerFunc {
+func CORS(allowedOrigins string) gin.HandlerFunc {
+	allowed := parseCORSOrigins(allowedOrigins)
+
 	return func(c *gin.Context) {
-		if origin != "" {
-			c.Header("Access-Control-Allow-Origin", origin)
+		reqOrigin := c.GetHeader("Origin")
+		if reqOrigin != "" {
+			if _, ok := allowed[reqOrigin]; ok {
+				c.Header("Access-Control-Allow-Origin", reqOrigin)
+				c.Header("Vary", "Origin")
+			}
 		}
+
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
@@ -53,6 +60,17 @@ func CORS(origin string) gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+func parseCORSOrigins(raw string) map[string]struct{} {
+	allowed := make(map[string]struct{})
+	for _, part := range strings.Split(raw, ",") {
+		origin := strings.TrimSpace(part)
+		if origin != "" {
+			allowed[origin] = struct{}{}
+		}
+	}
+	return allowed
 }
 
 func Auth(adminPassword string) gin.HandlerFunc {
