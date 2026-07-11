@@ -60,6 +60,15 @@ type Entry struct {
 	IsArchived bool   `json:"is_archived"`
 }
 
+type EntryIDsInput struct {
+	IDs []int64 `json:"ids"`
+}
+
+type BulkResult struct {
+	Affected int     `json:"affected"`
+	IDs      []int64 `json:"ids"`
+}
+
 func ParseArchiveScope(raw string) (ArchiveScope, error) {
 	switch strings.TrimSpace(strings.ToLower(raw)) {
 	case "", "false", "active":

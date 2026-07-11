@@ -21,7 +21,9 @@ type EntryRepository interface {
 	Create(ctx context.Context, input domain.EntryInput) (*domain.Entry, error)
 	Update(ctx context.Context, id int64, input domain.EntryInput) (*domain.Entry, error)
 	Delete(ctx context.Context, id int64) error
+	DeleteMany(ctx context.Context, ids []int64) (int64, error)
 	SetArchived(ctx context.Context, id int64, archived bool) (*domain.Entry, error)
+	SetArchivedMany(ctx context.Context, ids []int64, archived bool) (int64, error)
 }
 
 type PgxEntryRepository struct {
@@ -186,6 +188,18 @@ func (r *PgxEntryRepository) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
+func (r *PgxEntryRepository) DeleteMany(ctx context.Context, ids []int64) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+
+	tag, err := r.pool.Exec(ctx, "DELETE FROM entries WHERE id = ANY($1)", ids)
+	if err != nil {
+		return 0, fmt.Errorf("delete entries: %w", err)
+	}
+	return tag.RowsAffected(), nil
+}
+
 func (r *PgxEntryRepository) SetArchived(ctx context.Context, id int64, archived bool) (*domain.Entry, error) {
 	var entry domain.Entry
 	err := r.pool.QueryRow(ctx, fmt.Sprintf(`
@@ -213,6 +227,23 @@ func (r *PgxEntryRepository) SetArchived(ctx context.Context, id int64, archived
 		return nil, fmt.Errorf("set archived: %w", err)
 	}
 	return &entry, nil
+}
+
+func (r *PgxEntryRepository) SetArchivedMany(ctx context.Context, ids []int64, archived bool) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE entries
+		SET is_archived = $1,
+		    archived_at = CASE WHEN $1 THEN NOW() ELSE NULL END
+		WHERE id = ANY($2)
+	`, archived, ids)
+	if err != nil {
+		return 0, fmt.Errorf("set archived many: %w", err)
+	}
+	return tag.RowsAffected(), nil
 }
 
 type scannable interface {

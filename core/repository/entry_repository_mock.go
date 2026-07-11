@@ -137,6 +137,28 @@ func (m *EntryRepositoryMock) Delete(ctx context.Context, id int64) error {
 	return ErrNotFound
 }
 
+func (m *EntryRepositoryMock) DeleteMany(ctx context.Context, ids []int64) (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	idSet := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		idSet[id] = struct{}{}
+	}
+
+	kept := make([]domain.Entry, 0, len(m.entries))
+	var affected int64
+	for _, entry := range m.entries {
+		if _, ok := idSet[entry.ID]; ok {
+			affected++
+			continue
+		}
+		kept = append(kept, entry)
+	}
+	m.entries = kept
+	return affected, nil
+}
+
 func (m *EntryRepositoryMock) SetArchived(ctx context.Context, id int64, archived bool) (*domain.Entry, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -150,4 +172,25 @@ func (m *EntryRepositoryMock) SetArchived(ctx context.Context, id int64, archive
 		return &entry, nil
 	}
 	return nil, ErrNotFound
+}
+
+func (m *EntryRepositoryMock) SetArchivedMany(ctx context.Context, ids []int64, archived bool) (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	idSet := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		idSet[id] = struct{}{}
+	}
+
+	var affected int64
+	for i, entry := range m.entries {
+		if _, ok := idSet[entry.ID]; !ok {
+			continue
+		}
+		entry.IsArchived = archived
+		m.entries[i] = entry
+		affected++
+	}
+	return affected, nil
 }

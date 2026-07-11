@@ -136,78 +136,123 @@ func (h *EntryHandler) Update(c *gin.Context) {
 }
 
 func (h *EntryHandler) Delete(c *gin.Context) {
-	id, err := parseEntryID(c)
+	ids, single, err := parseEntryIDs(c)
 	if err != nil {
 		response.BadRequest(c, "Invalid entry id")
 		return
 	}
 
-	err = h.service.Delete(c.Request.Context(), id)
+	if single {
+		err = h.service.Delete(c.Request.Context(), ids[0])
+		if errors.Is(err, service.ErrInvalidEntryID) {
+			response.BadRequest(c, "Invalid entry id")
+			return
+		}
+		if errors.Is(err, service.ErrEntryNotFound) {
+			response.NotFound(c, "Entry not found")
+			return
+		}
+		if err != nil {
+			slog.Error("delete entry failed", "error", err)
+			response.InternalServer(c, "Internal server error")
+			return
+		}
+		response.OK(c, "Entry deleted successfully", nil)
+		return
+	}
+
+	result, err := h.service.DeleteMany(c.Request.Context(), ids)
 	if errors.Is(err, service.ErrInvalidEntryID) {
 		response.BadRequest(c, "Invalid entry id")
 		return
 	}
-	if errors.Is(err, service.ErrEntryNotFound) {
-		response.NotFound(c, "Entry not found")
-		return
-	}
 	if err != nil {
-		slog.Error("delete entry failed", "error", err)
+		slog.Error("delete entries failed", "error", err)
 		response.InternalServer(c, "Internal server error")
 		return
 	}
 
-	response.OK(c, "Entry deleted successfully", nil)
+	response.OK(c, "Entries deleted successfully", result)
 }
 
 func (h *EntryHandler) Archive(c *gin.Context) {
-	id, err := parseEntryID(c)
+	ids, single, err := parseEntryIDs(c)
 	if err != nil {
 		response.BadRequest(c, "Invalid entry id")
 		return
 	}
 
-	entry, err := h.service.Archive(c.Request.Context(), id)
+	if single {
+		entry, err := h.service.Archive(c.Request.Context(), ids[0])
+		if errors.Is(err, service.ErrInvalidEntryID) {
+			response.BadRequest(c, "Invalid entry id")
+			return
+		}
+		if errors.Is(err, service.ErrEntryNotFound) {
+			response.NotFound(c, "Entry not found")
+			return
+		}
+		if err != nil {
+			slog.Error("archive entry failed", "error", err)
+			response.InternalServer(c, "Internal server error")
+			return
+		}
+		response.OK(c, "Entry archived successfully", entry)
+		return
+	}
+
+	result, err := h.service.ArchiveMany(c.Request.Context(), ids)
 	if errors.Is(err, service.ErrInvalidEntryID) {
 		response.BadRequest(c, "Invalid entry id")
 		return
 	}
-	if errors.Is(err, service.ErrEntryNotFound) {
-		response.NotFound(c, "Entry not found")
-		return
-	}
 	if err != nil {
-		slog.Error("archive entry failed", "error", err)
+		slog.Error("archive entries failed", "error", err)
 		response.InternalServer(c, "Internal server error")
 		return
 	}
 
-	response.OK(c, "Entry archived successfully", entry)
+	response.OK(c, "Entries archived successfully", result)
 }
 
 func (h *EntryHandler) Unarchive(c *gin.Context) {
-	id, err := parseEntryID(c)
+	ids, single, err := parseEntryIDs(c)
 	if err != nil {
 		response.BadRequest(c, "Invalid entry id")
 		return
 	}
 
-	entry, err := h.service.Unarchive(c.Request.Context(), id)
+	if single {
+		entry, err := h.service.Unarchive(c.Request.Context(), ids[0])
+		if errors.Is(err, service.ErrInvalidEntryID) {
+			response.BadRequest(c, "Invalid entry id")
+			return
+		}
+		if errors.Is(err, service.ErrEntryNotFound) {
+			response.NotFound(c, "Entry not found")
+			return
+		}
+		if err != nil {
+			slog.Error("unarchive entry failed", "error", err)
+			response.InternalServer(c, "Internal server error")
+			return
+		}
+		response.OK(c, "Entry unarchived successfully", entry)
+		return
+	}
+
+	result, err := h.service.UnarchiveMany(c.Request.Context(), ids)
 	if errors.Is(err, service.ErrInvalidEntryID) {
 		response.BadRequest(c, "Invalid entry id")
 		return
 	}
-	if errors.Is(err, service.ErrEntryNotFound) {
-		response.NotFound(c, "Entry not found")
-		return
-	}
 	if err != nil {
-		slog.Error("unarchive entry failed", "error", err)
+		slog.Error("unarchive entries failed", "error", err)
 		response.InternalServer(c, "Internal server error")
 		return
 	}
 
-	response.OK(c, "Entry unarchived successfully", entry)
+	response.OK(c, "Entries unarchived successfully", result)
 }
 
 func parseEntryID(c *gin.Context) (int64, error) {
@@ -222,6 +267,32 @@ func parseEntryID(c *gin.Context) (int64, error) {
 	}
 
 	return id, nil
+}
+
+// parseEntryIDs accepts either ?id= for a single item or JSON body {"ids":[...]} for bulk.
+// Returns (ids, isSingle, error).
+func parseEntryIDs(c *gin.Context) ([]int64, bool, error) {
+	if idStr := c.Query("id"); idStr != "" {
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil || id <= 0 {
+			return nil, false, errors.New("invalid id")
+		}
+		return []int64{id}, true, nil
+	}
+
+	var input domain.EntryIDsInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		return nil, false, errors.New("invalid ids")
+	}
+	if len(input.IDs) == 0 {
+		return nil, false, errors.New("missing ids")
+	}
+	for _, id := range input.IDs {
+		if id <= 0 {
+			return nil, false, errors.New("invalid id")
+		}
+	}
+	return input.IDs, false, nil
 }
 
 func parsePagination(c *gin.Context) (int, int, error) {

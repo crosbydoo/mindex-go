@@ -518,6 +518,7 @@ Ready-to-use files in `docs/mocks/`:
 | `entries-list-response.json` | Example list response |
 | `entry-archive-response.json` | `POST /api/entries/archive` |
 | `entry-unarchive-response.json` | `POST /api/entries/unarchive` |
+| `entry-ids-request.json` | Bulk body `{ "ids": [1,2,3] }` |
 | `error-unauthorized.json` | `401` example |
 | `error-not-found.json` | `404` example |
 | `error-invalid-payload.json` | `400` example |

@@ -289,85 +289,111 @@ Body: `EntryInput` — same as create.
 
 ## `DELETE /api/entries?id={id}`
 
-Permanently delete an entry. **Auth required.** Prefer archive when you want to hide without deleting.
+Permanently delete one or many entries. **Auth required.** Prefer archive when you want to hide without deleting.
 
-### Request
+### Request — single
 
 ```bash
 curl -X DELETE "http://localhost:8080/api/entries?id=1" \
   -H "Authorization: Bearer <token>"
 ```
 
+### Request — bulk (select all / checklist)
+
+```bash
+curl -X DELETE "http://localhost:8080/api/entries" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"ids":[1,2,3]}'
+```
+
 | Param | Type | Required | Description |
 |-------|------|----------|-------------|
-| `id` | query | yes | Positive integer entry ID |
+| `id` | query | one of | Single entry ID |
+| `ids` | body | one of | Array of entry IDs |
 
 ### Response
 
 | Status | Body |
 |--------|------|
-| `200` | Envelope with `data: null` |
+| `200` | Single: `data: null` — Bulk: `data: { "affected": 3, "ids": [1,2,3] }` |
 | `400` | Envelope error — Invalid entry id |
 | `401` | Envelope error — Unauthorized |
-| `404` | Envelope error — Entry not found |
+| `404` | Envelope error — Entry not found (single only) |
 | `500` | Envelope error |
 
 ---
 
 ## `POST /api/entries/archive?id={id}`
 
-Archive an entry (`is_archived = true`). Archived entries are hidden from the default list. **Auth required.**
+Archive one or many entries (`is_archived = true`). Archived entries are hidden from the default list. **Auth required.**
 
-### Request
+### Request — single
 
 ```bash
 curl -X POST "http://localhost:8080/api/entries/archive?id=1" \
   -H "Authorization: Bearer <token>"
 ```
 
+### Request — bulk (select all / checklist)
+
+```bash
+curl -X POST "http://localhost:8080/api/entries/archive" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"ids":[1,2,3]}'
+```
+
 | Param | Type | Required | Description |
 |-------|------|----------|-------------|
-| `id` | query | yes | Positive integer entry ID |
-
-No body.
+| `id` | query | one of | Single entry ID |
+| `ids` | body | one of | Array of entry IDs |
 
 ### Response
 
 | Status | Body |
 |--------|------|
-| `200` | Envelope with archived `Entry` in `data` (`is_archived: true`) |
+| `200` | Single: archived `Entry` — Bulk: `{ "affected": 3, "ids": [1,2,3] }` |
 | `400` | Envelope error — Invalid entry id |
 | `401` | Envelope error — Unauthorized |
-| `404` | Envelope error — Entry not found |
+| `404` | Envelope error — Entry not found (single only) |
 | `500` | Envelope error |
 
 ---
 
 ## `POST /api/entries/unarchive?id={id}`
 
-Restore an archived entry (`is_archived = false`). **Auth required.**
+Restore one or many archived entries (`is_archived = false`). **Auth required.**
 
-### Request
+### Request — single
 
 ```bash
 curl -X POST "http://localhost:8080/api/entries/unarchive?id=1" \
   -H "Authorization: Bearer <token>"
 ```
 
+### Request — bulk (select all / checklist)
+
+```bash
+curl -X POST "http://localhost:8080/api/entries/unarchive" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"ids":[1,2,3]}'
+```
+
 | Param | Type | Required | Description |
 |-------|------|----------|-------------|
-| `id` | query | yes | Positive integer entry ID |
-
-No body.
+| `id` | query | one of | Single entry ID |
+| `ids` | body | one of | Array of entry IDs |
 
 ### Response
 
 | Status | Body |
 |--------|------|
-| `200` | Envelope with restored `Entry` in `data` (`is_archived: false`) |
+| `200` | Single: restored `Entry` — Bulk: `{ "affected": 3, "ids": [1,2,3] }` |
 | `400` | Envelope error — Invalid entry id |
 | `401` | Envelope error — Unauthorized |
-| `404` | Envelope error — Entry not found |
+| `404` | Envelope error — Entry not found (single only) |
 | `500` | Envelope error |
 
 ---
@@ -398,22 +424,32 @@ curl -X PUT "http://localhost:8080/api/entries?id=1" \
   -H "Authorization: Bearer $TOKEN" \
   -d @docs/mocks/entry-update-request.json
 
-# 6. Archive
+# 6. Archive (single)
 curl -X POST "http://localhost:8080/api/entries/archive?id=1" \
   -H "Authorization: Bearer $TOKEN"
 
-# 7. List archived
+# 7. Archive (bulk / select all)
+curl -X POST "http://localhost:8080/api/entries/archive" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"ids":[1,2,3]}'
+
+# 8. List archived
 curl "http://localhost:8080/api/entries?archived=true"
 
-# 8. Unarchive
-curl -X POST "http://localhost:8080/api/entries/unarchive?id=1" \
-  -H "Authorization: Bearer $TOKEN"
+# 9. Unarchive (bulk)
+curl -X POST "http://localhost:8080/api/entries/unarchive" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"ids":[1,2,3]}'
 
-# 9. Delete permanently
-curl -X DELETE "http://localhost:8080/api/entries?id=1" \
-  -H "Authorization: Bearer $TOKEN"
+# 10. Delete permanently (bulk)
+curl -X DELETE "http://localhost:8080/api/entries" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"ids":[1,2,3]}'
 
-# 10. Logout
+# 11. Logout
 curl -X POST http://localhost:8080/api/logout
 ```
 
