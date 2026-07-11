@@ -88,6 +88,7 @@ mindex-api/
 │   ├── api-models.md         # Request/response models & mocks
 │   ├── mocks/                # Ready-to-use JSON mock files
 │   ├── vps-setup.md          # VPS setup (pull from Docker Hub)
+│   ├── cloudflare-tunnel.md  # Free HTTPS tunnel (no domain)
 │   └── deployment.md         # Full CI/CD GitHub → Docker Hub → VPS
 ├── data/seed-entries.json    # 18 seed psychology entries
 ├── migrations/               # SQL migrations
@@ -191,13 +192,16 @@ GitHub (push main) → GitHub Actions (build + push) → Docker Hub → VPS (pul
 
 Panduan step-by-step: **[docs/vps-setup.md](docs/vps-setup.md)**
 
+### Free HTTPS tanpa domain (Cloudflare Tunnel)
+
+Supaya frontend Vercel bisa panggil API via HTTPS:
+
+**[docs/cloudflare-tunnel.md](docs/cloudflare-tunnel.md)**
+
 ```bash
-# Di VPS (ringkas)
-mkdir -p /opt/mindex-api && cd /opt/mindex-api
-# copy deploy/docker-compose.yml, .env.example, deploy.sh
-cp .env.example .env && nano .env
-chmod +x deploy.sh && ./deploy.sh
-curl http://localhost:8080/health
+# Di VPS (setelah API sudah up)
+cloudflared tunnel --url http://localhost:8080
+# → https://xxxx.trycloudflare.com
 ```
 
 Full CI/CD guide: **[docs/deployment.md](docs/deployment.md)**

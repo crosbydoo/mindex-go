@@ -41,18 +41,18 @@ build:
 test:
 	@go test ./...
 
-# Build Docker image for local Mac
+# Build Docker image for current machine (local)
 docker-build:
+	@docker info >/dev/null 2>&1 || (echo "ERROR: Docker is not running. Open Docker Desktop first."; exit 1)
 	@docker build -t ristudev/mindex-go-server:latest .
 
-# Build & push for VPS (linux/amd64) — use this before deploy
+# Build for VPS (linux/amd64) then push to Docker Hub as ristudev/...
 docker-push:
-	@docker buildx create --name mindex-builder --use 2>/dev/null || docker buildx use mindex-builder
-	@docker buildx build \
-		--platform linux/amd64 \
-		-t ristudev/mindex-go-server:latest \
-		--push \
-		.
+	@docker info >/dev/null 2>&1 || (echo "ERROR: Docker is not running. Open Docker Desktop first."; exit 1)
+	@docker login
+	@docker build --platform linux/amd64 -t ristudev/mindex-go-server:latest .
+	@docker push ristudev/mindex-go-server:latest
+	@echo "Pushed: ristudev/mindex-go-server:latest (linux/amd64)"
 
 # Clean build artifacts
 clean:
