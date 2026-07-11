@@ -87,7 +87,8 @@ mindex-api/
 │   ├── api-endpoints.md      # Endpoint reference
 │   ├── api-models.md         # Request/response models & mocks
 │   ├── mocks/                # Ready-to-use JSON mock files
-│   └── deployment.md         # GitHub → Docker Hub → VPS
+│   ├── vps-setup.md          # VPS setup (pull from Docker Hub)
+│   └── deployment.md         # Full CI/CD GitHub → Docker Hub → VPS
 ├── data/seed-entries.json    # 18 seed psychology entries
 ├── migrations/               # SQL migrations
 ├── pkg/response/             # JSON response helpers
@@ -186,19 +187,22 @@ VPS **does not build** the app — it only **pulls the image** from Docker Hub.
 GitHub (push main) → GitHub Actions (build + push) → Docker Hub → VPS (pull + run)
 ```
 
-See full guide: **[docs/deployment.md](docs/deployment.md)**
+### Setup VPS (image sudah ada di Docker Hub)
 
-Quick VPS setup:
+Panduan step-by-step: **[docs/vps-setup.md](docs/vps-setup.md)**
 
 ```bash
-# On VPS (one-time)
+# Di VPS (ringkas)
 mkdir -p /opt/mindex-api && cd /opt/mindex-api
-# copy deploy/* files here
+# copy deploy/docker-compose.yml, .env.example, deploy.sh
 cp .env.example .env && nano .env
 chmod +x deploy.sh && ./deploy.sh
+curl http://localhost:8080/health
 ```
 
-Required GitHub Secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_DEPLOY_PATH`
+Full CI/CD guide: **[docs/deployment.md](docs/deployment.md)**
+
+Required GitHub Secrets (untuk auto-deploy): `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_DEPLOY_PATH`
 
 ---
 
