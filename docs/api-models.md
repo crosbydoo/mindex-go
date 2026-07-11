@@ -66,6 +66,10 @@ All endpoints return this shape:
 
 ### `Category`
 
+Category names are **managed in the database** (seeded with 7 defaults). Use `GET /api/categories/list` for the live list. Creating entries requires an existing category name.
+
+Default seeded values:
+
 | Value |
 |-------|
 | `Clinical Psychology` |
@@ -307,7 +311,7 @@ Used by `POST /api/entries` and `PUT /api/entries`. Same as `Entry` **without** 
 |-------|------|----------|------------|
 | `title` | `string` | yes | Non-empty after trim |
 | `abstract` | `string` | yes | Non-empty after trim |
-| `category` | `Category` | yes | Must match enum |
+| `category` | `string` | yes | Must exist in categories table |
 | `year` | `number` | yes | Positive integer (`> 0`) |
 | `author` | `string` | yes | Non-empty after trim |
 | `source` | `string` | yes | Non-empty after trim |
@@ -450,6 +454,82 @@ Server normalizes missing `url` to `"#"`.
 
 ---
 
+## Category management
+
+### `CategoryItem` (response model)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `number` | Auto-generated ID |
+| `name` | `string` | Unique category name |
+| `entry_count` | `number` | Number of entries using this name |
+
+### `CategoryInput`
+
+| Field | Type | Required | Validation |
+|-------|------|----------|------------|
+| `name` | `string` | yes | Non-empty after trim, max 100 chars |
+
+#### Mock: create request
+
+```json
+{
+  "name": "Neuropsychology"
+}
+```
+
+#### Mock: list response `200`
+
+```json
+{
+  "code": 200,
+  "status": true,
+  "message": "Category list retrieved successfully",
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "name": "Clinical Psychology",
+        "entry_count": 3
+      },
+      {
+        "id": 8,
+        "name": "Neuropsychology",
+        "entry_count": 0
+      }
+    ]
+  }
+}
+```
+
+#### Mock: create response `201`
+
+```json
+{
+  "code": 201,
+  "status": true,
+  "message": "Category created successfully",
+  "data": {
+    "id": 8,
+    "name": "Neuropsychology",
+    "entry_count": 0
+  }
+}
+```
+
+#### Mock: conflict `409` (in use)
+
+```json
+{
+  "code": 409,
+  "status": false,
+  "message": "Category is still used by entries",
+  "data": null
+}
+```
+
+---
+
 ## TypeScript interfaces (frontend reference)
 
 ```ts
@@ -460,14 +540,8 @@ export interface ApiResponse<T = unknown> {
   data: T | null;
 }
 
-export type Category =
-  | 'Clinical Psychology'
-  | 'Developmental Psychology'
-  | 'Cognitive Psychology'
-  | 'Social Psychology'
-  | 'Educational Psychology'
-  | 'Mental Health'
-  | 'Research Methods';
+/** Prefer fetching live names from GET /api/categories/list */
+export type Category = string;
 
 export type EntryType =
   | 'Journal'
@@ -489,6 +563,16 @@ export interface Entry {
 }
 
 export type EntryInput = Omit<Entry, 'id' | 'is_archived'>;
+
+export interface CategoryItem {
+  id: number;
+  name: string;
+  entry_count: number;
+}
+
+export interface CategoryInput {
+  name: string;
+}
 
 export interface LoginRequest {
   password: string;
@@ -519,9 +603,12 @@ Ready-to-use files in `docs/mocks/`:
 | `entry-archive-response.json` | `POST /api/entries/archive` |
 | `entry-unarchive-response.json` | `POST /api/entries/unarchive` |
 | `entry-ids-request.json` | Bulk body `{ "ids": [1,2,3] }` |
+| `category-create-request.json` | `POST /api/categories` |
+| `category-list-response.json` | `GET /api/categories/list` |
 | `error-unauthorized.json` | `401` example |
 | `error-not-found.json` | `404` example |
 | `error-invalid-payload.json` | `400` example |
+| `error-conflict.json` | `409` example |
 
 ---
 

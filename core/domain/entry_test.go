@@ -42,19 +42,20 @@ func TestValidateEntryInput_MissingRequired(t *testing.T) {
 	}
 }
 
-func TestValidateEntryInput_InvalidCategory(t *testing.T) {
+func TestValidateEntryInput_InvalidCategoryAllowedAtDomain(t *testing.T) {
+	// Category existence is enforced in the service layer against the DB.
 	input := EntryInput{
 		Title:    "Test",
 		Abstract: "Abstract",
-		Category: "Invalid Category",
+		Category: "Custom Category",
 		Year:     2024,
 		Author:   "Author",
 		Source:   "Source",
 		Type:     "Journal",
 	}
 
-	if err := ValidateEntryInput(input); err == nil {
-		t.Fatal("expected validation error for invalid category")
+	if err := ValidateEntryInput(input); err != nil {
+		t.Fatalf("expected domain validation to allow custom category, got: %v", err)
 	}
 }
 

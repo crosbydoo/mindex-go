@@ -17,9 +17,14 @@ func sampleEntries() []domain.Entry {
 	}
 }
 
+func newTestEntryService(entries []domain.Entry) (EntryService, *repository.EntryRepositoryMock, *repository.CategoryRepositoryMock) {
+	entryRepo := repository.NewEntryRepositoryMock(entries)
+	categoryRepo := repository.NewCategoryRepositoryMock(domain.CategoryList, entryRepo)
+	return NewEntryService(entryRepo, categoryRepo), entryRepo, categoryRepo
+}
+
 func TestEntryService_List(t *testing.T) {
-	repo := repository.NewEntryRepositoryMock(sampleEntries())
-	svc := NewEntryService(repo)
+	svc, _, _ := newTestEntryService(sampleEntries())
 
 	result, err := svc.List(context.Background(), domain.ListFilter{Page: 1, Limit: 10})
 	if err != nil {
@@ -34,8 +39,7 @@ func TestEntryService_List(t *testing.T) {
 }
 
 func TestEntryService_List_WithCategory(t *testing.T) {
-	repo := repository.NewEntryRepositoryMock(sampleEntries())
-	svc := NewEntryService(repo)
+	svc, _, _ := newTestEntryService(sampleEntries())
 
 	result, err := svc.List(context.Background(), domain.ListFilter{
 		Page:     1,
@@ -51,8 +55,7 @@ func TestEntryService_List_WithCategory(t *testing.T) {
 }
 
 func TestEntryService_List_InvalidCategory(t *testing.T) {
-	repo := repository.NewEntryRepositoryMock(nil)
-	svc := NewEntryService(repo)
+	svc, _, _ := newTestEntryService(nil)
 
 	_, err := svc.List(context.Background(), domain.ListFilter{
 		Category: "Unknown",
@@ -63,8 +66,7 @@ func TestEntryService_List_InvalidCategory(t *testing.T) {
 }
 
 func TestEntryService_ListByCategories(t *testing.T) {
-	repo := repository.NewEntryRepositoryMock(sampleEntries())
-	svc := NewEntryService(repo)
+	svc, _, _ := newTestEntryService(sampleEntries())
 
 	result, err := svc.ListByCategories(context.Background(), 1, 10, domain.ArchiveActive)
 	if err != nil {
@@ -90,8 +92,7 @@ func TestEntryService_ListByCategories(t *testing.T) {
 }
 
 func TestEntryService_Create_Valid(t *testing.T) {
-	repo := repository.NewEntryRepositoryMock(nil)
-	svc := NewEntryService(repo)
+	svc, _, _ := newTestEntryService(nil)
 
 	entry, err := svc.Create(context.Background(), domain.EntryInput{
 		Title:    "New Entry",
@@ -111,8 +112,7 @@ func TestEntryService_Create_Valid(t *testing.T) {
 }
 
 func TestEntryService_Create_Invalid(t *testing.T) {
-	repo := repository.NewEntryRepositoryMock(nil)
-	svc := NewEntryService(repo)
+	svc, _, _ := newTestEntryService(nil)
 
 	_, err := svc.Create(context.Background(), domain.EntryInput{
 		Title: "Missing fields",
@@ -122,9 +122,25 @@ func TestEntryService_Create_Invalid(t *testing.T) {
 	}
 }
 
+func TestEntryService_Create_InvalidCategory(t *testing.T) {
+	svc, _, _ := newTestEntryService(nil)
+
+	_, err := svc.Create(context.Background(), domain.EntryInput{
+		Title:    "New Entry",
+		Abstract: "Abstract",
+		Category: "Unknown Category",
+		Year:     2024,
+		Author:   "Author",
+		Source:   "Source",
+		Type:     "Journal",
+	})
+	if !errors.Is(err, ErrInvalidCategory) {
+		t.Fatalf("expected ErrInvalidCategory, got %v", err)
+	}
+}
+
 func TestEntryService_Update_NotFound(t *testing.T) {
-	repo := repository.NewEntryRepositoryMock(nil)
-	svc := NewEntryService(repo)
+	svc, _, _ := newTestEntryService(nil)
 
 	_, err := svc.Update(context.Background(), 99, domain.EntryInput{
 		Title:    "Updated",
@@ -141,8 +157,7 @@ func TestEntryService_Update_NotFound(t *testing.T) {
 }
 
 func TestEntryService_Delete_InvalidID(t *testing.T) {
-	repo := repository.NewEntryRepositoryMock(nil)
-	svc := NewEntryService(repo)
+	svc, _, _ := newTestEntryService(nil)
 
 	err := svc.Delete(context.Background(), 0)
 	if !errors.Is(err, ErrInvalidEntryID) {
@@ -151,8 +166,7 @@ func TestEntryService_Delete_InvalidID(t *testing.T) {
 }
 
 func TestEntryService_ArchiveAndUnarchive(t *testing.T) {
-	repo := repository.NewEntryRepositoryMock(sampleEntries())
-	svc := NewEntryService(repo)
+	svc, _, _ := newTestEntryService(sampleEntries())
 
 	archived, err := svc.Archive(context.Background(), 1)
 	if err != nil {
@@ -192,12 +206,56 @@ func TestEntryService_ArchiveAndUnarchive(t *testing.T) {
 }
 
 func TestEntryService_Archive_NotFound(t *testing.T) {
-	repo := repository.NewEntryRepositoryMock(nil)
-	svc := NewEntryService(repo)
+	svc, _, _ := newTestEntryService(nil)
 
 	_, err := svc.Archive(context.Background(), 99)
 	if !errors.Is(err, ErrEntryNotFound) {
 		t.Fatalf("expected ErrEntryNotFound, got %v", err)
+	}
+}
+
+func TestCategoryService_CRUD(t *testing.T) {
+	entryRepo := repository.NewEntryRepositoryMock(nil)
+	categoryRepo := repository.NewCategoryRepositoryMock(nil, entryRepo)
+	svc := NewCategoryService(categoryRepo)
+
+	created, err := svc.Create(context.Background(), domain.CategoryInput{Name: "  New Category  "})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if created.Name != "New Category" {
+		t.Fatalf("expected trimmed name, got %q", created.Name)
+	}
+
+	list, err := svc.List(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(list.Items) != 1 {
+		t.Fatalf("expected 1 category, got %d", len(list.Items))
+	}
+
+	updated, err := svc.Update(context.Background(), created.ID, domain.CategoryInput{Name: "Renamed"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if updated.Name != "Renamed" {
+		t.Fatalf("expected Renamed, got %q", updated.Name)
+	}
+
+	if err := svc.Delete(context.Background(), created.ID); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCategoryService_DeleteInUse(t *testing.T) {
+	entryRepo := repository.NewEntryRepositoryMock(sampleEntries())
+	categoryRepo := repository.NewCategoryRepositoryMock(domain.CategoryList, entryRepo)
+	svc := NewCategoryService(categoryRepo)
+
+	err := svc.Delete(context.Background(), 1) // Clinical Psychology
+	if !errors.Is(err, ErrCategoryInUse) {
+		t.Fatalf("expected ErrCategoryInUse, got %v", err)
 	}
 }
 

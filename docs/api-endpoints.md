@@ -25,6 +25,7 @@ All JSON responses use `Content-Type: application/json` and this envelope:
 | `GET` | `/health` | No | Health check |
 | `GET` | `/api/entries` | No | List entries (paginated; optional category / archived) |
 | `GET` | `/api/categories` | No | All categories with paginated entries each |
+| `GET` | `/api/categories/list` | No | List category definitions (`id`, `name`, `entry_count`) |
 | `POST` | `/api/login` | No | Admin login |
 | `POST` | `/api/logout` | No | Logout |
 | `POST` | `/api/entries` | Bearer | Create entry |
@@ -32,6 +33,9 @@ All JSON responses use `Content-Type: application/json` and this envelope:
 | `DELETE` | `/api/entries?id={id}` | Bearer | Delete entry permanently |
 | `POST` | `/api/entries/archive?id={id}` | Bearer | Archive entry |
 | `POST` | `/api/entries/unarchive?id={id}` | Bearer | Unarchive entry |
+| `POST` | `/api/categories` | Bearer | Create category |
+| `PUT` | `/api/categories?id={id}` | Bearer | Rename category |
+| `DELETE` | `/api/categories?id={id}` | Bearer | Delete category |
 
 **Protected routes** require header:
 
@@ -47,8 +51,8 @@ See request/response models: **[api-models.md](./api-models.md)**
 
 | Access | Endpoints |
 |--------|-----------|
-| Public | `GET /health`, `GET /api/entries`, `GET /api/categories`, `POST /api/login`, `POST /api/logout` |
-| Protected | `POST /api/entries`, `PUT /api/entries`, `DELETE /api/entries`, `POST /api/entries/archive`, `POST /api/entries/unarchive` |
+| Public | `GET /health`, `GET /api/entries`, `GET /api/categories`, `GET /api/categories/list`, `POST /api/login`, `POST /api/logout` |
+| Protected | `POST/PUT/DELETE /api/entries`, `POST /api/entries/archive`, `POST /api/entries/unarchive`, `POST/PUT/DELETE /api/categories` |
 
 Token algorithm:
 
@@ -144,6 +148,125 @@ curl "http://localhost:8080/api/categories?archived=true"
 |--------|------|
 | `200` | Envelope with `data.categories[]` (each has `category`, `items`, `pagination`) |
 | `400` | Invalid pagination / archived filter |
+| `500` | Envelope error |
+
+---
+
+## `GET /api/categories/list`
+
+List category definitions (for admin manage UI). **Public.**
+
+### Request
+
+```bash
+curl "http://localhost:8080/api/categories/list"
+```
+
+### Response
+
+| Status | Body |
+|--------|------|
+| `200` | Envelope with `data.items[]` (`id`, `name`, `entry_count`) |
+| `500` | Envelope error |
+
+Example:
+
+```json
+{
+  "code": 200,
+  "status": true,
+  "message": "Category list retrieved successfully",
+  "data": {
+    "items": [
+      { "id": 1, "name": "Clinical Psychology", "entry_count": 3 }
+    ]
+  }
+}
+```
+
+---
+
+## `POST /api/categories`
+
+Create a category. **Auth required.**
+
+### Request
+
+```bash
+curl -X POST http://localhost:8080/api/categories \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"name":"Neuropsychology"}'
+```
+
+Body: `{ "name": string }` — required, trimmed, max 100 chars.
+
+### Response
+
+| Status | Body |
+|--------|------|
+| `201` | Envelope with created category in `data` |
+| `400` | Invalid category payload |
+| `401` | Unauthorized |
+| `409` | Category already exists |
+| `500` | Envelope error |
+
+---
+
+## `PUT /api/categories?id={id}`
+
+Rename a category. Also updates `entries.category` for matching rows. **Auth required.**
+
+### Request
+
+```bash
+curl -X PUT "http://localhost:8080/api/categories?id=1" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"name":"Clinical Psych"}'
+```
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | query | yes | Positive integer category ID |
+
+### Response
+
+| Status | Body |
+|--------|------|
+| `200` | Envelope with updated category in `data` |
+| `400` | Invalid category id / payload |
+| `401` | Unauthorized |
+| `404` | Category not found |
+| `409` | Category name already exists |
+| `500` | Envelope error |
+
+---
+
+## `DELETE /api/categories?id={id}`
+
+Delete a category. **Rejected with 409** if any entries still use it. **Auth required.**
+
+### Request
+
+```bash
+curl -X DELETE "http://localhost:8080/api/categories?id=8" \
+  -H "Authorization: Bearer <token>"
+```
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | query | yes | Positive integer category ID |
+
+### Response
+
+| Status | Body |
+|--------|------|
+| `200` | Envelope with `data: null` |
+| `400` | Invalid category id |
+| `401` | Unauthorized |
+| `404` | Category not found |
+| `409` | Category is still used by entries |
 | `500` | Envelope error |
 
 ---
@@ -448,6 +571,13 @@ curl -X DELETE "http://localhost:8080/api/entries" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{"ids":[1,2,3]}'
+
+# 10. Categories CRUD
+curl "http://localhost:8080/api/categories/list"
+curl -X POST http://localhost:8080/api/categories \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"name":"Neuropsychology"}'
 
 # 11. Logout
 curl -X POST http://localhost:8080/api/logout

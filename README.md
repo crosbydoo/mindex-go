@@ -117,6 +117,7 @@ Detailed docs are split into separate files:
 | `GET` | `/health` | No |
 | `GET` | `/api/entries?page=&limit=&category=&archived=` | No |
 | `GET` | `/api/categories?page=&limit=&archived=` | No |
+| `GET` | `/api/categories/list` | No |
 | `POST` | `/api/login` | No |
 | `POST` | `/api/logout` | No |
 | `POST` | `/api/entries` | Bearer |
@@ -124,6 +125,9 @@ Detailed docs are split into separate files:
 | `DELETE` | `/api/entries?id={id}` | Bearer |
 | `POST` | `/api/entries/archive?id={id}` | Bearer |
 | `POST` | `/api/entries/unarchive?id={id}` | Bearer |
+| `POST` | `/api/categories` | Bearer |
+| `PUT` | `/api/categories?id={id}` | Bearer |
+| `DELETE` | `/api/categories?id={id}` | Bearer |
 
 ### Quick test with mock files
 

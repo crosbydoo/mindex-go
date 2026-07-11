@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"mindex-api/core/domain"
@@ -21,12 +22,18 @@ func setupEntryRouter() (*gin.Engine, service.EntryService) {
 		{ID: 1, Title: "Entry 1", Abstract: "A", Category: "Clinical Psychology", Year: 2024, Author: "A", Source: "S", Type: "Journal", URL: "#"},
 		{ID: 2, Title: "Entry 2", Abstract: "B", Category: "Mental Health", Year: 2023, Author: "B", Source: "S", Type: "Article", URL: "#"},
 	})
-	svc := service.NewEntryService(repo)
+	categoryRepo := repository.NewCategoryRepositoryMock(domain.CategoryList, repo)
+	svc := service.NewEntryService(repo, categoryRepo)
 	handler := NewEntryHandler(svc)
+	categoryHandler := NewCategoryHandler(service.NewCategoryService(categoryRepo))
 
 	r := gin.New()
 	r.GET("/api/entries", handler.List)
 	r.GET("/api/categories", handler.ListByCategories)
+	r.GET("/api/categories/list", categoryHandler.List)
+	r.POST("/api/categories", categoryHandler.Create)
+	r.PUT("/api/categories", categoryHandler.Update)
+	r.DELETE("/api/categories", categoryHandler.Delete)
 	r.POST("/api/entries", handler.Create)
 	r.PUT("/api/entries", handler.Update)
 	r.DELETE("/api/entries", handler.Delete)
@@ -174,6 +181,56 @@ func TestEntryHandler_ArchiveAndListArchived(t *testing.T) {
 	}
 	if len(data.Items) != 1 {
 		t.Fatalf("expected 1 archived item, got %d", len(data.Items))
+	}
+}
+
+func TestCategoryHandler_CreateListDelete(t *testing.T) {
+	r, _ := setupEntryRouter()
+
+	body := bytes.NewBufferString(`{"name":"New Psychology Field"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/categories", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	var createResp response.Body
+	if err := json.Unmarshal(rec.Body.Bytes(), &createResp); err != nil {
+		t.Fatalf("failed to decode: %v", err)
+	}
+	raw, _ := json.Marshal(createResp.Data)
+	var created domain.Category
+	if err := json.Unmarshal(raw, &created); err != nil {
+		t.Fatalf("failed to decode category: %v", err)
+	}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/api/categories/list", nil)
+	listRec := httptest.NewRecorder()
+	r.ServeHTTP(listRec, listReq)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", listRec.Code)
+	}
+
+	delReq := httptest.NewRequest(http.MethodDelete, "/api/categories?id="+strconv.FormatInt(created.ID, 10), nil)
+	delRec := httptest.NewRecorder()
+	r.ServeHTTP(delRec, delReq)
+	if delRec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", delRec.Code, delRec.Body.String())
+	}
+}
+
+func TestCategoryHandler_DeleteInUse(t *testing.T) {
+	r, _ := setupEntryRouter()
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/categories?id=1", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d body=%s", rec.Code, rec.Body.String())
 	}
 }
 

@@ -1,0 +1,6 @@
+{
+  "code": 409,
+  "status": false,
+  "message": "Category is still used by entries",
+  "data": null
+}
