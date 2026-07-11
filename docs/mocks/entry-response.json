@@ -11,6 +11,7 @@
     "author": "Jane Doe",
     "source": "Test Journal",
     "type": "Journal",
-    "url": "https://example.com/article"
+    "url": "https://example.com/article",
+    "is_archived": false
   }
 }

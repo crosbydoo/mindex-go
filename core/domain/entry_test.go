@@ -123,3 +123,34 @@ func TestBuildPagination(t *testing.T) {
 		t.Fatalf("unexpected empty pagination: %+v", empty)
 	}
 }
+
+func TestParseArchiveScope(t *testing.T) {
+	cases := []struct {
+		in   string
+		want ArchiveScope
+		err  bool
+	}{
+		{"", ArchiveActive, false},
+		{"false", ArchiveActive, false},
+		{"active", ArchiveActive, false},
+		{"true", ArchiveOnly, false},
+		{"archived", ArchiveOnly, false},
+		{"all", ArchiveAll, false},
+		{"nope", "", true},
+	}
+	for _, tc := range cases {
+		got, err := ParseArchiveScope(tc.in)
+		if tc.err {
+			if err == nil {
+				t.Fatalf("input %q: expected error", tc.in)
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatalf("input %q: unexpected error: %v", tc.in, err)
+		}
+		if got != tc.want {
+			t.Fatalf("input %q: expected %q, got %q", tc.in, tc.want, got)
+		}
+	}
+}

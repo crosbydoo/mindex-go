@@ -40,6 +40,8 @@ func SetupRouter(deps Dependencies) *gin.Engine {
 		api.POST("/entries", middleware.Auth(deps.AdminPassword), entryHandler.Create)
 		api.PUT("/entries", middleware.Auth(deps.AdminPassword), entryHandler.Update)
 		api.DELETE("/entries", middleware.Auth(deps.AdminPassword), entryHandler.Delete)
+		api.POST("/entries/archive", middleware.Auth(deps.AdminPassword), entryHandler.Archive)
+		api.POST("/entries/unarchive", middleware.Auth(deps.AdminPassword), entryHandler.Unarchive)
 		api.POST("/login", loginHandler.Login)
 		api.POST("/logout", loginHandler.Logout)
 	}

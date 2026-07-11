@@ -13,7 +13,8 @@
         "author": "Michael Okafor",
         "source": "Social Psychology Quarterly",
         "type": "Article",
-        "url": "https://example.com/social-identity"
+        "url": "https://example.com/social-identity",
+        "is_archived": false
       }
     ],
     "pagination": {

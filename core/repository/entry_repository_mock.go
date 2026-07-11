@@ -36,6 +36,18 @@ func (m *EntryRepositoryMock) List(ctx context.Context, filter domain.ListFilter
 		if filter.Category != "" && entry.Category != filter.Category {
 			continue
 		}
+		switch filter.Archived {
+		case domain.ArchiveOnly:
+			if !entry.IsArchived {
+				continue
+			}
+		case domain.ArchiveAll:
+			// include all
+		default:
+			if entry.IsArchived {
+				continue
+			}
+		}
 		filtered = append(filtered, entry)
 	}
 
@@ -68,15 +80,16 @@ func (m *EntryRepositoryMock) Create(ctx context.Context, input domain.EntryInpu
 
 	normalized := domain.NormalizeEntryInput(input)
 	entry := domain.Entry{
-		ID:       m.nextID,
-		Title:    normalized.Title,
-		Abstract: normalized.Abstract,
-		Category: normalized.Category,
-		Year:     normalized.Year,
-		Author:   normalized.Author,
-		Source:   normalized.Source,
-		Type:     normalized.Type,
-		URL:      normalized.URL,
+		ID:         m.nextID,
+		Title:      normalized.Title,
+		Abstract:   normalized.Abstract,
+		Category:   normalized.Category,
+		Year:       normalized.Year,
+		Author:     normalized.Author,
+		Source:     normalized.Source,
+		Type:       normalized.Type,
+		URL:        normalized.URL,
+		IsArchived: false,
 	}
 	m.nextID++
 	m.entries = append(m.entries, entry)
@@ -93,15 +106,16 @@ func (m *EntryRepositoryMock) Update(ctx context.Context, id int64, input domain
 			continue
 		}
 		updated := domain.Entry{
-			ID:       id,
-			Title:    normalized.Title,
-			Abstract: normalized.Abstract,
-			Category: normalized.Category,
-			Year:     normalized.Year,
-			Author:   normalized.Author,
-			Source:   normalized.Source,
-			Type:     normalized.Type,
-			URL:      normalized.URL,
+			ID:         id,
+			Title:      normalized.Title,
+			Abstract:   normalized.Abstract,
+			Category:   normalized.Category,
+			Year:       normalized.Year,
+			Author:     normalized.Author,
+			Source:     normalized.Source,
+			Type:       normalized.Type,
+			URL:        normalized.URL,
+			IsArchived: entry.IsArchived,
 		}
 		m.entries[i] = updated
 		return &updated, nil
@@ -121,4 +135,19 @@ func (m *EntryRepositoryMock) Delete(ctx context.Context, id int64) error {
 		return nil
 	}
 	return ErrNotFound
+}
+
+func (m *EntryRepositoryMock) SetArchived(ctx context.Context, id int64, archived bool) (*domain.Entry, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for i, entry := range m.entries {
+		if entry.ID != id {
+			continue
+		}
+		entry.IsArchived = archived
+		m.entries[i] = entry
+		return &entry, nil
+	}
+	return nil, ErrNotFound
 }

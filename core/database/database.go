@@ -2,10 +2,13 @@ package database
 
 import (
 	"context"
-	_ "embed"
+	"embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log/slog"
+	"sort"
+	"strings"
 	"time"
 
 	"mindex-api/core/domain"
@@ -13,8 +16,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-//go:embed migrations/001_create_entries.up.sql
-var migrationSQL string
+//go:embed migrations/*.sql
+var migrationFS embed.FS
 
 //go:embed data/seed-entries.json
 var seedData []byte
@@ -44,10 +47,31 @@ func NewPool(ctx context.Context, postgresURL string) (*pgxpool.Pool, error) {
 }
 
 func RunMigrations(ctx context.Context, pool *pgxpool.Pool) error {
-	_, err := pool.Exec(ctx, migrationSQL)
+	entries, err := fs.ReadDir(migrationFS, "migrations")
 	if err != nil {
-		return fmt.Errorf("run migrations: %w", err)
+		return fmt.Errorf("read migrations: %w", err)
 	}
+
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".up.sql") {
+			continue
+		}
+		names = append(names, entry.Name())
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		sqlBytes, err := migrationFS.ReadFile("migrations/" + name)
+		if err != nil {
+			return fmt.Errorf("read migration %s: %w", name, err)
+		}
+		if _, err := pool.Exec(ctx, string(sqlBytes)); err != nil {
+			return fmt.Errorf("run migration %s: %w", name, err)
+		}
+		slog.Info("migration applied", "file", name)
+	}
+
 	return nil
 }
 

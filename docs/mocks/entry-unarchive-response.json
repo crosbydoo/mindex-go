@@ -1,0 +1,17 @@
+{
+  "code": 200,
+  "status": true,
+  "message": "Entry unarchived successfully",
+  "data": {
+    "id": 1,
+    "title": "Cognitive Behavioral Therapy for Depression: A Meta-Analysis",
+    "abstract": "This meta-analysis examines the efficacy of cognitive behavioral therapy across 87 randomized controlled trials, finding moderate to large effect sizes for depression treatment.",
+    "category": "Clinical Psychology",
+    "year": 2023,
+    "author": "Sarah Mitchell",
+    "source": "Journal of Clinical Psychology",
+    "type": "Journal",
+    "url": "https://example.com/cbt-depression",
+    "is_archived": false
+  }
+}

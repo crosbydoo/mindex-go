@@ -66,7 +66,7 @@ func TestEntryService_ListByCategories(t *testing.T) {
 	repo := repository.NewEntryRepositoryMock(sampleEntries())
 	svc := NewEntryService(repo)
 
-	result, err := svc.ListByCategories(context.Background(), 1, 10)
+	result, err := svc.ListByCategories(context.Background(), 1, 10, domain.ArchiveActive)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -147,6 +147,57 @@ func TestEntryService_Delete_InvalidID(t *testing.T) {
 	err := svc.Delete(context.Background(), 0)
 	if !errors.Is(err, ErrInvalidEntryID) {
 		t.Fatalf("expected ErrInvalidEntryID, got %v", err)
+	}
+}
+
+func TestEntryService_ArchiveAndUnarchive(t *testing.T) {
+	repo := repository.NewEntryRepositoryMock(sampleEntries())
+	svc := NewEntryService(repo)
+
+	archived, err := svc.Archive(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !archived.IsArchived {
+		t.Fatal("expected entry to be archived")
+	}
+
+	active, err := svc.List(context.Background(), domain.ListFilter{Page: 1, Limit: 10})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(active.Items) != 2 {
+		t.Fatalf("expected 2 active entries, got %d", len(active.Items))
+	}
+
+	onlyArchived, err := svc.List(context.Background(), domain.ListFilter{
+		Page:     1,
+		Limit:    10,
+		Archived: domain.ArchiveOnly,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(onlyArchived.Items) != 1 {
+		t.Fatalf("expected 1 archived entry, got %d", len(onlyArchived.Items))
+	}
+
+	restored, err := svc.Unarchive(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if restored.IsArchived {
+		t.Fatal("expected entry to be unarchived")
+	}
+}
+
+func TestEntryService_Archive_NotFound(t *testing.T) {
+	repo := repository.NewEntryRepositoryMock(nil)
+	svc := NewEntryService(repo)
+
+	_, err := svc.Archive(context.Background(), 99)
+	if !errors.Is(err, ErrEntryNotFound) {
+		t.Fatalf("expected ErrEntryNotFound, got %v", err)
 	}
 }
 

@@ -115,13 +115,15 @@ Detailed docs are split into separate files:
 | Method | Path | Auth |
 |--------|------|------|
 | `GET` | `/health` | No |
-| `GET` | `/api/entries?page=&limit=&category=` | No |
-| `GET` | `/api/categories?page=&limit=` | No |
+| `GET` | `/api/entries?page=&limit=&category=&archived=` | No |
+| `GET` | `/api/categories?page=&limit=&archived=` | No |
 | `POST` | `/api/login` | No |
 | `POST` | `/api/logout` | No |
 | `POST` | `/api/entries` | Bearer |
 | `PUT` | `/api/entries?id={id}` | Bearer |
 | `DELETE` | `/api/entries?id={id}` | Bearer |
+| `POST` | `/api/entries/archive?id={id}` | Bearer |
+| `POST` | `/api/entries/unarchive?id={id}` | Bearer |
 
 ### Quick test with mock files
 

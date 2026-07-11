@@ -12,21 +12,24 @@ import (
 )
 
 var (
-	ErrInvalidPayload       = errors.New("invalid entry payload")
-	ErrInvalidEntryID       = errors.New("invalid entry id")
-	ErrEntryNotFound        = errors.New("entry not found")
-	ErrInvalidPassword      = errors.New("invalid password")
-	ErrAdminNotConfigured   = errors.New("admin password not configured")
-	ErrInvalidCategory      = errors.New("invalid category")
-	ErrInvalidPagination    = errors.New("invalid pagination")
+	ErrInvalidPayload     = errors.New("invalid entry payload")
+	ErrInvalidEntryID     = errors.New("invalid entry id")
+	ErrEntryNotFound      = errors.New("entry not found")
+	ErrInvalidPassword    = errors.New("invalid password")
+	ErrAdminNotConfigured = errors.New("admin password not configured")
+	ErrInvalidCategory    = errors.New("invalid category")
+	ErrInvalidPagination  = errors.New("invalid pagination")
+	ErrInvalidArchived    = errors.New("invalid archived filter")
 )
 
 type EntryService interface {
 	List(ctx context.Context, filter domain.ListFilter) (*domain.PaginatedEntries, error)
-	ListByCategories(ctx context.Context, page, limit int) (*domain.CategoriesResult, error)
+	ListByCategories(ctx context.Context, page, limit int, archived domain.ArchiveScope) (*domain.CategoriesResult, error)
 	Create(ctx context.Context, input domain.EntryInput) (*domain.Entry, error)
 	Update(ctx context.Context, id int64, input domain.EntryInput) (*domain.Entry, error)
 	Delete(ctx context.Context, id int64) error
+	Archive(ctx context.Context, id int64) (*domain.Entry, error)
+	Unarchive(ctx context.Context, id int64) (*domain.Entry, error)
 }
 
 type LoginService interface {
@@ -47,6 +50,9 @@ func (s *entryService) List(ctx context.Context, filter domain.ListFilter) (*dom
 	if filter.Category != "" && !domain.IsValidCategory(filter.Category) {
 		return nil, ErrInvalidCategory
 	}
+	if filter.Archived == "" {
+		filter.Archived = domain.ArchiveActive
+	}
 
 	filter.Page, filter.Limit = domain.NormalizePagination(filter.Page, filter.Limit)
 
@@ -64,8 +70,11 @@ func (s *entryService) List(ctx context.Context, filter domain.ListFilter) (*dom
 	}, nil
 }
 
-func (s *entryService) ListByCategories(ctx context.Context, page, limit int) (*domain.CategoriesResult, error) {
+func (s *entryService) ListByCategories(ctx context.Context, page, limit int, archived domain.ArchiveScope) (*domain.CategoriesResult, error) {
 	page, limit = domain.NormalizePagination(page, limit)
+	if archived == "" {
+		archived = domain.ArchiveActive
+	}
 
 	categories := make([]domain.CategoryEntries, 0, len(domain.CategoryList))
 	for _, category := range domain.CategoryList {
@@ -73,6 +82,7 @@ func (s *entryService) ListByCategories(ctx context.Context, page, limit int) (*
 			Page:     page,
 			Limit:    limit,
 			Category: category,
+			Archived: archived,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("list entries for category %q: %w", category, err)
@@ -129,6 +139,29 @@ func (s *entryService) Delete(ctx context.Context, id int64) error {
 		return fmt.Errorf("delete entry: %w", err)
 	}
 	return nil
+}
+
+func (s *entryService) Archive(ctx context.Context, id int64) (*domain.Entry, error) {
+	return s.setArchived(ctx, id, true)
+}
+
+func (s *entryService) Unarchive(ctx context.Context, id int64) (*domain.Entry, error) {
+	return s.setArchived(ctx, id, false)
+}
+
+func (s *entryService) setArchived(ctx context.Context, id int64, archived bool) (*domain.Entry, error) {
+	if id <= 0 {
+		return nil, ErrInvalidEntryID
+	}
+
+	entry, err := s.repo.SetArchived(ctx, id, archived)
+	if errors.Is(err, repository.ErrNotFound) {
+		return nil, ErrEntryNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("set archived: %w", err)
+	}
+	return entry, nil
 }
 
 type loginService struct {

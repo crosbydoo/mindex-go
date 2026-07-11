@@ -39,16 +39,38 @@ var ValidEntryTypes = map[string]struct{}{
 	"Literature Review": {},
 }
 
+type ArchiveScope string
+
+const (
+	ArchiveActive ArchiveScope = "active" // default: is_archived = false
+	ArchiveOnly   ArchiveScope = "archived"
+	ArchiveAll    ArchiveScope = "all"
+)
+
 type Entry struct {
-	ID       int64  `json:"id"`
-	Title    string `json:"title"`
-	Abstract string `json:"abstract"`
-	Category string `json:"category"`
-	Year     int    `json:"year"`
-	Author   string `json:"author"`
-	Source   string `json:"source"`
-	Type     string `json:"type"`
-	URL      string `json:"url"`
+	ID         int64  `json:"id"`
+	Title      string `json:"title"`
+	Abstract   string `json:"abstract"`
+	Category   string `json:"category"`
+	Year       int    `json:"year"`
+	Author     string `json:"author"`
+	Source     string `json:"source"`
+	Type       string `json:"type"`
+	URL        string `json:"url"`
+	IsArchived bool   `json:"is_archived"`
+}
+
+func ParseArchiveScope(raw string) (ArchiveScope, error) {
+	switch strings.TrimSpace(strings.ToLower(raw)) {
+	case "", "false", "active":
+		return ArchiveActive, nil
+	case "true", "archived":
+		return ArchiveOnly, nil
+	case "all":
+		return ArchiveAll, nil
+	default:
+		return "", fmt.Errorf("invalid archived filter")
+	}
 }
 
 type EntryInput struct {
@@ -90,6 +112,7 @@ type ListFilter struct {
 	Page     int
 	Limit    int
 	Category string
+	Archived ArchiveScope
 }
 
 func NormalizePagination(page, limit int) (int, int) {

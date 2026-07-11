@@ -186,7 +186,7 @@ All endpoints return this shape:
 
 ### `Entry` (response model)
 
-Returned by `GET /api/entries`, `POST /api/entries`, `PUT /api/entries`.
+Returned by list/create/update/archive/unarchive endpoints.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -199,8 +199,9 @@ Returned by `GET /api/entries`, `POST /api/entries`, `PUT /api/entries`.
 | `source` | `string` | Journal or publisher |
 | `type` | `EntryType` | Literature type |
 | `url` | `string` | Source link (default `#`) |
+| `is_archived` | `boolean` | `true` when archived |
 
-> `created_at` exists in DB but is **not** returned to clients.
+> `created_at` / `archived_at` exist in DB but are **not** returned to clients.
 
 #### Mock: single entry
 
@@ -214,7 +215,8 @@ Returned by `GET /api/entries`, `POST /api/entries`, `PUT /api/entries`.
   "author": "Sarah Mitchell",
   "source": "Journal of Clinical Psychology",
   "type": "Journal",
-  "url": "https://example.com/cbt-depression"
+  "url": "https://example.com/cbt-depression",
+  "is_archived": false
 }
 ```
 
@@ -225,19 +227,30 @@ Returned by `GET /api/entries`, `POST /api/entries`, `PUT /api/entries`.
   "code": 200,
   "status": true,
   "message": "Entries retrieved successfully",
-  "data": [
-    {
-      "id": 4,
-      "title": "Social Identity and Group Behavior in Online Communities",
-      "abstract": "Explores how social identity theory explains collective behavior patterns in digital communities and social media platforms.",
-      "category": "Social Psychology",
-      "year": 2024,
-      "author": "Michael Okafor",
-      "source": "Social Psychology Quarterly",
-      "type": "Article",
-      "url": "https://example.com/social-identity"
+  "data": {
+    "items": [
+      {
+        "id": 4,
+        "title": "Social Identity and Group Behavior in Online Communities",
+        "abstract": "Explores how social identity theory explains collective behavior patterns in digital communities and social media platforms.",
+        "category": "Social Psychology",
+        "year": 2024,
+        "author": "Michael Okafor",
+        "source": "Social Psychology Quarterly",
+        "type": "Article",
+        "url": "https://example.com/social-identity",
+        "is_archived": false
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 10,
+      "total": 18,
+      "total_pages": 2,
+      "has_next": true,
+      "has_prev": false
     }
-  ]
+  }
 }
 ```
 
@@ -248,7 +261,39 @@ Returned by `GET /api/entries`, `POST /api/entries`, `PUT /api/entries`.
   "code": 200,
   "status": true,
   "message": "Entries retrieved successfully",
-  "data": []
+  "data": {
+    "items": [],
+    "pagination": {
+      "page": 1,
+      "limit": 10,
+      "total": 0,
+      "total_pages": 0,
+      "has_next": false,
+      "has_prev": false
+    }
+  }
+}
+```
+
+#### Mock: archive response `200`
+
+```json
+{
+  "code": 200,
+  "status": true,
+  "message": "Entry archived successfully",
+  "data": {
+    "id": 1,
+    "title": "Cognitive Behavioral Therapy for Depression: A Meta-Analysis",
+    "abstract": "This meta-analysis examines the efficacy of cognitive behavioral therapy across 87 randomized controlled trials, finding moderate to large effect sizes for depression treatment.",
+    "category": "Clinical Psychology",
+    "year": 2023,
+    "author": "Sarah Mitchell",
+    "source": "Journal of Clinical Psychology",
+    "type": "Journal",
+    "url": "https://example.com/cbt-depression",
+    "is_archived": true
+  }
 }
 ```
 
@@ -331,7 +376,8 @@ Server normalizes missing `url` to `"#"`.
     "author": "Jane Doe",
     "source": "Test Journal",
     "type": "Journal",
-    "url": "https://example.com/article"
+    "url": "https://example.com/article",
+    "is_archived": false
   }
 }
 ```
@@ -352,7 +398,8 @@ Server normalizes missing `url` to `"#"`.
     "author": "Jane Doe",
     "source": "Updated Journal",
     "type": "Article",
-    "url": "https://example.com/updated"
+    "url": "https://example.com/updated",
+    "is_archived": false
   }
 }
 ```
@@ -438,9 +485,10 @@ export interface Entry {
   source: string;
   type: EntryType;
   url: string;
+  is_archived: boolean;
 }
 
-export type EntryInput = Omit<Entry, 'id'>;
+export type EntryInput = Omit<Entry, 'id' | 'is_archived'>;
 
 export interface LoginRequest {
   password: string;
@@ -468,6 +516,8 @@ Ready-to-use files in `docs/mocks/`:
 | `entry-update-request.json` | `PUT /api/entries?id=1` |
 | `entry-response.json` | Example single entry response |
 | `entries-list-response.json` | Example list response |
+| `entry-archive-response.json` | `POST /api/entries/archive` |
+| `entry-unarchive-response.json` | `POST /api/entries/unarchive` |
 | `error-unauthorized.json` | `401` example |
 | `error-not-found.json` | `404` example |
 | `error-invalid-payload.json` | `400` example |

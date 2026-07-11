@@ -30,6 +30,8 @@ func setupEntryRouter() (*gin.Engine, service.EntryService) {
 	r.POST("/api/entries", handler.Create)
 	r.PUT("/api/entries", handler.Update)
 	r.DELETE("/api/entries", handler.Delete)
+	r.POST("/api/entries/archive", handler.Archive)
+	r.POST("/api/entries/unarchive", handler.Unarchive)
 
 	return r, svc
 }
@@ -120,6 +122,58 @@ func TestEntryHandler_Create_UnauthorizedPayload(t *testing.T) {
 	}
 	if resp.Status {
 		t.Fatal("expected status false")
+	}
+}
+
+func TestEntryHandler_ArchiveAndListArchived(t *testing.T) {
+	r, _ := setupEntryRouter()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/entries/archive?id=1", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	var resp response.Body
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	raw, err := json.Marshal(resp.Data)
+	if err != nil {
+		t.Fatalf("failed to marshal data: %v", err)
+	}
+	var entry domain.Entry
+	if err := json.Unmarshal(raw, &entry); err != nil {
+		t.Fatalf("failed to decode entry: %v", err)
+	}
+	if !entry.IsArchived {
+		t.Fatal("expected is_archived true")
+	}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/api/entries?archived=true", nil)
+	listRec := httptest.NewRecorder()
+	r.ServeHTTP(listRec, listReq)
+
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", listRec.Code)
+	}
+
+	var listResp response.Body
+	if err := json.Unmarshal(listRec.Body.Bytes(), &listResp); err != nil {
+		t.Fatalf("failed to decode list response: %v", err)
+	}
+	listRaw, err := json.Marshal(listResp.Data)
+	if err != nil {
+		t.Fatalf("failed to marshal list data: %v", err)
+	}
+	var data domain.PaginatedEntries
+	if err := json.Unmarshal(listRaw, &data); err != nil {
+		t.Fatalf("failed to decode list data: %v", err)
+	}
+	if len(data.Items) != 1 {
+		t.Fatalf("expected 1 archived item, got %d", len(data.Items))
 	}
 }
 

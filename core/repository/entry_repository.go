@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"mindex-api/core/domain"
 
@@ -13,11 +14,14 @@ import (
 
 var ErrNotFound = errors.New("entry not found")
 
+const entryColumns = `id, title, abstract, category, year, author, source, type, url, is_archived`
+
 type EntryRepository interface {
 	List(ctx context.Context, filter domain.ListFilter) ([]domain.Entry, int64, error)
 	Create(ctx context.Context, input domain.EntryInput) (*domain.Entry, error)
 	Update(ctx context.Context, id int64, input domain.EntryInput) (*domain.Entry, error)
 	Delete(ctx context.Context, id int64) error
+	SetArchived(ctx context.Context, id int64, archived bool) (*domain.Entry, error)
 }
 
 type PgxEntryRepository struct {
@@ -32,14 +36,28 @@ func (r *PgxEntryRepository) List(ctx context.Context, filter domain.ListFilter)
 	page, limit := domain.NormalizePagination(filter.Page, filter.Limit)
 	offset := domain.Offset(page, limit)
 
-	args := make([]any, 0, 3)
-	where := ""
+	args := make([]any, 0, 4)
+	clauses := make([]string, 0, 2)
 	argPos := 1
 
 	if filter.Category != "" {
-		where = fmt.Sprintf("WHERE category = $%d", argPos)
+		clauses = append(clauses, fmt.Sprintf("category = $%d", argPos))
 		args = append(args, filter.Category)
 		argPos++
+	}
+
+	switch filter.Archived {
+	case domain.ArchiveOnly:
+		clauses = append(clauses, "is_archived = TRUE")
+	case domain.ArchiveAll:
+		// no archive filter
+	default:
+		clauses = append(clauses, "is_archived = FALSE")
+	}
+
+	where := ""
+	if len(clauses) > 0 {
+		where = "WHERE " + strings.Join(clauses, " AND ")
 	}
 
 	countQuery := "SELECT COUNT(*) FROM entries " + where
@@ -49,12 +67,12 @@ func (r *PgxEntryRepository) List(ctx context.Context, filter domain.ListFilter)
 	}
 
 	listQuery := fmt.Sprintf(`
-		SELECT id, title, abstract, category, year, author, source, type, url
+		SELECT %s
 		FROM entries
 		%s
 		ORDER BY year DESC, id DESC
 		LIMIT $%d OFFSET $%d
-	`, where, argPos, argPos+1)
+	`, entryColumns, where, argPos, argPos+1)
 
 	listArgs := append(append([]any{}, args...), limit, offset)
 	rows, err := r.pool.Query(ctx, listQuery, listArgs...)
@@ -65,19 +83,9 @@ func (r *PgxEntryRepository) List(ctx context.Context, filter domain.ListFilter)
 
 	entries := make([]domain.Entry, 0)
 	for rows.Next() {
-		var entry domain.Entry
-		if err := rows.Scan(
-			&entry.ID,
-			&entry.Title,
-			&entry.Abstract,
-			&entry.Category,
-			&entry.Year,
-			&entry.Author,
-			&entry.Source,
-			&entry.Type,
-			&entry.URL,
-		); err != nil {
-			return nil, 0, fmt.Errorf("scan entry: %w", err)
+		entry, err := scanEntry(rows)
+		if err != nil {
+			return nil, 0, err
 		}
 		entries = append(entries, entry)
 	}
@@ -93,11 +101,11 @@ func (r *PgxEntryRepository) Create(ctx context.Context, input domain.EntryInput
 	normalized := domain.NormalizeEntryInput(input)
 
 	var entry domain.Entry
-	err := r.pool.QueryRow(ctx, `
+	err := r.pool.QueryRow(ctx, fmt.Sprintf(`
 		INSERT INTO entries (title, abstract, category, year, author, source, type, url)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id, title, abstract, category, year, author, source, type, url
-	`,
+		RETURNING %s
+	`, entryColumns),
 		normalized.Title,
 		normalized.Abstract,
 		normalized.Category,
@@ -116,6 +124,7 @@ func (r *PgxEntryRepository) Create(ctx context.Context, input domain.EntryInput
 		&entry.Source,
 		&entry.Type,
 		&entry.URL,
+		&entry.IsArchived,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("insert entry: %w", err)
@@ -128,13 +137,13 @@ func (r *PgxEntryRepository) Update(ctx context.Context, id int64, input domain.
 	normalized := domain.NormalizeEntryInput(input)
 
 	var entry domain.Entry
-	err := r.pool.QueryRow(ctx, `
+	err := r.pool.QueryRow(ctx, fmt.Sprintf(`
 		UPDATE entries
 		SET title = $1, abstract = $2, category = $3, year = $4,
 		    author = $5, source = $6, type = $7, url = $8
 		WHERE id = $9
-		RETURNING id, title, abstract, category, year, author, source, type, url
-	`,
+		RETURNING %s
+	`, entryColumns),
 		normalized.Title,
 		normalized.Abstract,
 		normalized.Category,
@@ -154,6 +163,7 @@ func (r *PgxEntryRepository) Update(ctx context.Context, id int64, input domain.
 		&entry.Source,
 		&entry.Type,
 		&entry.URL,
+		&entry.IsArchived,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -174,4 +184,56 @@ func (r *PgxEntryRepository) Delete(ctx context.Context, id int64) error {
 		return ErrNotFound
 	}
 	return nil
+}
+
+func (r *PgxEntryRepository) SetArchived(ctx context.Context, id int64, archived bool) (*domain.Entry, error) {
+	var entry domain.Entry
+	err := r.pool.QueryRow(ctx, fmt.Sprintf(`
+		UPDATE entries
+		SET is_archived = $1,
+		    archived_at = CASE WHEN $1 THEN NOW() ELSE NULL END
+		WHERE id = $2
+		RETURNING %s
+	`, entryColumns), archived, id).Scan(
+		&entry.ID,
+		&entry.Title,
+		&entry.Abstract,
+		&entry.Category,
+		&entry.Year,
+		&entry.Author,
+		&entry.Source,
+		&entry.Type,
+		&entry.URL,
+		&entry.IsArchived,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("set archived: %w", err)
+	}
+	return &entry, nil
+}
+
+type scannable interface {
+	Scan(dest ...any) error
+}
+
+func scanEntry(row scannable) (domain.Entry, error) {
+	var entry domain.Entry
+	if err := row.Scan(
+		&entry.ID,
+		&entry.Title,
+		&entry.Abstract,
+		&entry.Category,
+		&entry.Year,
+		&entry.Author,
+		&entry.Source,
+		&entry.Type,
+		&entry.URL,
+		&entry.IsArchived,
+	); err != nil {
+		return domain.Entry{}, fmt.Errorf("scan entry: %w", err)
+	}
+	return entry, nil
 }
