@@ -25,10 +25,13 @@ func SetupRouter(deps Dependencies) *gin.Engine {
 	r.Use(middleware.CORS(deps.CORSOrigin))
 
 	entryRepo := repository.NewPgxEntryRepository(deps.Pool)
-	entryService := service.NewEntryService(entryRepo)
+	categoryRepo := repository.NewPgxCategoryRepository(deps.Pool)
+	entryService := service.NewEntryService(entryRepo, categoryRepo)
+	categoryService := service.NewCategoryService(categoryRepo)
 	loginService := service.NewLoginService(deps.AdminPassword)
 
 	entryHandler := handler.NewEntryHandler(entryService)
+	categoryHandler := handler.NewCategoryHandler(categoryService)
 	loginHandler := handler.NewLoginHandler(loginService)
 
 	r.GET("/health", handler.Health)
@@ -37,6 +40,10 @@ func SetupRouter(deps Dependencies) *gin.Engine {
 	{
 		api.GET("/entries", entryHandler.List)
 		api.GET("/categories", entryHandler.ListByCategories)
+		api.GET("/categories/list", categoryHandler.List)
+		api.POST("/categories", middleware.Auth(deps.AdminPassword), categoryHandler.Create)
+		api.PUT("/categories", middleware.Auth(deps.AdminPassword), categoryHandler.Update)
+		api.DELETE("/categories", middleware.Auth(deps.AdminPassword), categoryHandler.Delete)
 		api.POST("/entries", middleware.Auth(deps.AdminPassword), entryHandler.Create)
 		api.PUT("/entries", middleware.Auth(deps.AdminPassword), entryHandler.Update)
 		api.DELETE("/entries", middleware.Auth(deps.AdminPassword), entryHandler.Delete)

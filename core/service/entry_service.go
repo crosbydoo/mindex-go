@@ -41,17 +41,24 @@ type LoginService interface {
 }
 
 type entryService struct {
-	repo repository.EntryRepository
+	repo         repository.EntryRepository
+	categoryRepo repository.CategoryRepository
 }
 
-func NewEntryService(repo repository.EntryRepository) EntryService {
-	return &entryService{repo: repo}
+func NewEntryService(repo repository.EntryRepository, categoryRepo repository.CategoryRepository) EntryService {
+	return &entryService{repo: repo, categoryRepo: categoryRepo}
 }
 
 func (s *entryService) List(ctx context.Context, filter domain.ListFilter) (*domain.PaginatedEntries, error) {
 	filter.Category = strings.TrimSpace(filter.Category)
-	if filter.Category != "" && !domain.IsValidCategory(filter.Category) {
-		return nil, ErrInvalidCategory
+	if filter.Category != "" {
+		exists, err := s.categoryRepo.ExistsByName(ctx, filter.Category)
+		if err != nil {
+			return nil, fmt.Errorf("check category: %w", err)
+		}
+		if !exists {
+			return nil, ErrInvalidCategory
+		}
 	}
 	if filter.Archived == "" {
 		filter.Archived = domain.ArchiveActive
@@ -79,23 +86,28 @@ func (s *entryService) ListByCategories(ctx context.Context, page, limit int, ar
 		archived = domain.ArchiveActive
 	}
 
-	categories := make([]domain.CategoryEntries, 0, len(domain.CategoryList))
-	for _, category := range domain.CategoryList {
+	categoryItems, err := s.categoryRepo.List(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list categories: %w", err)
+	}
+
+	categories := make([]domain.CategoryEntries, 0, len(categoryItems))
+	for _, category := range categoryItems {
 		items, total, err := s.repo.List(ctx, domain.ListFilter{
 			Page:     page,
 			Limit:    limit,
-			Category: category,
+			Category: category.Name,
 			Archived: archived,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("list entries for category %q: %w", category, err)
+			return nil, fmt.Errorf("list entries for category %q: %w", category.Name, err)
 		}
 		if items == nil {
 			items = []domain.Entry{}
 		}
 
 		categories = append(categories, domain.CategoryEntries{
-			Category:   category,
+			Category:   category.Name,
 			Items:      items,
 			Pagination: domain.BuildPagination(page, limit, total),
 		})
@@ -108,6 +120,9 @@ func (s *entryService) Create(ctx context.Context, input domain.EntryInput) (*do
 	if err := domain.ValidateEntryInput(input); err != nil {
 		return nil, ErrInvalidPayload
 	}
+	if err := s.ensureCategoryExists(ctx, input.Category); err != nil {
+		return nil, err
+	}
 	return s.repo.Create(ctx, input)
 }
 
@@ -118,6 +133,9 @@ func (s *entryService) Update(ctx context.Context, id int64, input domain.EntryI
 	if err := domain.ValidateEntryInput(input); err != nil {
 		return nil, ErrInvalidPayload
 	}
+	if err := s.ensureCategoryExists(ctx, input.Category); err != nil {
+		return nil, err
+	}
 
 	entry, err := s.repo.Update(ctx, id, input)
 	if errors.Is(err, repository.ErrNotFound) {
@@ -127,6 +145,17 @@ func (s *entryService) Update(ctx context.Context, id int64, input domain.EntryI
 		return nil, fmt.Errorf("update entry: %w", err)
 	}
 	return entry, nil
+}
+
+func (s *entryService) ensureCategoryExists(ctx context.Context, category string) error {
+	exists, err := s.categoryRepo.ExistsByName(ctx, strings.TrimSpace(category))
+	if err != nil {
+		return fmt.Errorf("check category: %w", err)
+	}
+	if !exists {
+		return ErrInvalidCategory
+	}
+	return nil
 }
 
 func (s *entryService) Delete(ctx context.Context, id int64) error {

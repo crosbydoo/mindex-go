@@ -6,31 +6,11 @@ import (
 )
 
 const (
-	DefaultURL         = "#"
-	DefaultPage        = 1
-	DefaultLimit       = 10
-	MaxLimit           = 100
+	DefaultURL   = "#"
+	DefaultPage  = 1
+	DefaultLimit = 10
+	MaxLimit     = 100
 )
-
-var CategoryList = []string{
-	"Clinical Psychology",
-	"Developmental Psychology",
-	"Cognitive Psychology",
-	"Social Psychology",
-	"Educational Psychology",
-	"Mental Health",
-	"Research Methods",
-}
-
-var ValidCategories = map[string]struct{}{
-	"Clinical Psychology":      {},
-	"Developmental Psychology": {},
-	"Cognitive Psychology":     {},
-	"Social Psychology":        {},
-	"Educational Psychology":   {},
-	"Mental Health":            {},
-	"Research Methods":         {},
-}
 
 var ValidEntryTypes = map[string]struct{}{
 	"Journal":           {},
@@ -162,8 +142,13 @@ func Offset(page, limit int) int {
 }
 
 func IsValidCategory(category string) bool {
-	_, ok := ValidCategories[strings.TrimSpace(category)]
-	return ok
+	name := strings.TrimSpace(category)
+	for _, item := range CategoryList {
+		if item == name {
+			return true
+		}
+	}
+	return false
 }
 
 func NormalizeEntryInput(input EntryInput) EntryInput {
@@ -198,10 +183,6 @@ func ValidateEntryInput(input EntryInput) error {
 		normalized.Type == "" ||
 		normalized.Year <= 0 {
 		return fmt.Errorf("required fields must be non-empty")
-	}
-
-	if _, ok := ValidCategories[normalized.Category]; !ok {
-		return fmt.Errorf("invalid category")
 	}
 
 	if _, ok := ValidEntryTypes[normalized.Type]; !ok {

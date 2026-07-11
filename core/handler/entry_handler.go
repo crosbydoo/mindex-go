@@ -90,6 +90,10 @@ func (h *EntryHandler) Create(c *gin.Context) {
 		response.BadRequest(c, "Invalid entry payload")
 		return
 	}
+	if errors.Is(err, service.ErrInvalidCategory) {
+		response.BadRequest(c, "Invalid category")
+		return
+	}
 	if err != nil {
 		slog.Error("create entry failed", "error", err)
 		response.InternalServer(c, "Internal server error")
@@ -120,6 +124,10 @@ func (h *EntryHandler) Update(c *gin.Context) {
 	}
 	if errors.Is(err, service.ErrInvalidPayload) {
 		response.BadRequest(c, "Invalid entry payload")
+		return
+	}
+	if errors.Is(err, service.ErrInvalidCategory) {
+		response.BadRequest(c, "Invalid category")
 		return
 	}
 	if errors.Is(err, service.ErrEntryNotFound) {
